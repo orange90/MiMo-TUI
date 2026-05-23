@@ -7,7 +7,6 @@ _MIGRATIONS: list[str] = [
     # v1 — initial schema
     """
     CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
-    INSERT OR IGNORE INTO schema_version VALUES (0);
 
     CREATE TABLE IF NOT EXISTS sessions (
         id          TEXT PRIMARY KEY,
@@ -56,12 +55,12 @@ _MIGRATIONS: list[str] = [
 
 async def run_migrations(db: aiosqlite.Connection) -> None:
     await db.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)")
-    await db.execute("INSERT OR IGNORE INTO schema_version VALUES (0)")
-    row = await (await db.execute("SELECT version FROM schema_version")).fetchone()
-    current = row[0] if row else 0
+    row = await (await db.execute("SELECT MAX(version) FROM schema_version")).fetchone()
+    current = row[0] if row and row[0] is not None else 0
 
     for i, sql in enumerate(_MIGRATIONS):
         if i >= current:
             await db.executescript(sql)
-            await db.execute("UPDATE schema_version SET version = ?", (i + 1,))
+            await db.execute("DELETE FROM schema_version")
+            await db.execute("INSERT INTO schema_version VALUES (?)", (i + 1,))
     await db.commit()

@@ -52,13 +52,13 @@ class StatusBar(Static):
         if lang:
             self._lang = lang
         self._audio_playing = audio_playing
-        self._render()
+        self._refresh_text()
 
     def set_audio_playing(self, playing: bool) -> None:
         self._audio_playing = playing
-        self._render()
+        self._refresh_text()
 
-    def _render(self) -> None:
+    def _refresh_text(self) -> None:
         parts: list[str] = []
         if self._model:
             parts.append(self._model)

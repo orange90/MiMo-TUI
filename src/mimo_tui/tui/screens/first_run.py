@@ -102,7 +102,10 @@ class FirstRunWizard(ModalScreen[None]):
             body.remove_children()
             body.mount(Label(t("first_run.step_protocol"), classes="wizard-label"))
             body.mount(Select(
-                [("openai", t("first_run.protocol_openai")), ("anthropic", t("first_run.protocol_anthropic"))],
+                [
+                    (t("first_run.protocol_openai"), "openai"),
+                    (t("first_run.protocol_anthropic"), "anthropic"),
+                ],
                 id="wiz-protocol",
                 value="openai",  # type: ignore[arg-type]
             ))
@@ -111,7 +114,7 @@ class FirstRunWizard(ModalScreen[None]):
             step_label.update(f"Step 4/4 — {t('first_run.step_prefs')}")
             body.remove_children()
             body.mount(Label(t("first_run.language_label"), classes="wizard-label"))
-            body.mount(Select([("en", "English"), ("zh_CN", "中文")], id="wiz-lang", value="en"))  # type: ignore[arg-type]
+            body.mount(Select([("English", "en"), ("中文", "zh_CN")], id="wiz-lang", value="en"))  # type: ignore[arg-type]
             body.mount(Label(t("first_run.theme_label"), classes="wizard-label"))
             theme_opts = [(k, k) for k in THEMES]
             body.mount(Select(theme_opts, id="wiz-theme", value="tokyonight"))  # type: ignore[arg-type]
