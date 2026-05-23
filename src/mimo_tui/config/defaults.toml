@@ -1,0 +1,41 @@
+language = "en"
+theme = "tokyonight"
+mode = "agent"
+protocol = "openai"
+
+[endpoint]
+url = "https://token-plan-cn.xiaomimimo.com/v1"
+anthropic_url = "https://token-plan-cn.xiaomimimo.com/anthropic"
+api_key = ""
+timeout_s = 120
+
+[model]
+name = "MiMo-V2.5-Pro"
+reasoning = true
+vision = false
+audio_out = false
+tools = true
+max_tokens = 8192
+temperature = 0.6
+
+[approval]
+policy = "prompt"
+auto_allow = ["read_file", "glob", "grep"]
+
+[sandbox]
+project_root = "."
+shell_allowlist = ["git", "ls", "cat", "rg", "python", "pytest", "npm", "node"]
+shell_timeout_s = 60
+write_paths = ["."]
+
+[ui]
+reasoning_pane = "visible"
+image_protocol = "auto"
+
+[audio]
+auto_play = true
+output_device = "default"
+save_dir = "~/.mimo-tui/audio/"
+
+[mcp]
+servers = []

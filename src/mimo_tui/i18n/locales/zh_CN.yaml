@@ -1,0 +1,89 @@
+app_title: "MiMo 终端助手"
+status_bar:
+  model: "模型"
+  mode: "模式"
+  tokens_in: "输入"
+  tokens_out: "输出"
+  latency: "延迟"
+  playing: "播放中"
+chat:
+  placeholder: "输入消息… (/help 查看命令)"
+  you: "你"
+  assistant: "助手"
+  thinking: "思考中…"
+  tool_call: "工具调用"
+  tool_result: "结果"
+  empty_hint: "开始与 MiMo 对话"
+sessions:
+  title: "会话"
+  new: "+ 新建"
+  untitled: "未命名"
+composer:
+  send: "发送"
+  attach: "附件"
+  stop: "停止"
+reasoning:
+  title: "推理过程"
+  tokens: "令牌"
+  collapse: "收起"
+  expand: "展开"
+audio:
+  play: "播放"
+  stop: "停止"
+  save: "保存"
+  playing: "音频播放中…"
+approval:
+  title: "工具授权"
+  approve: "允许"
+  deny: "拒绝"
+  always_allow: "始终允许"
+  danger: "危险"
+model_picker:
+  title: "选择模型"
+  search: "搜索模型…"
+first_run:
+  title: "欢迎使用 MiMo TUI"
+  step_api: "API 密钥设置"
+  step_model: "选择模型"
+  step_protocol: "协议"
+  step_prefs: "偏好设置"
+  api_key_label: "MiMo API 密钥"
+  api_key_placeholder: "输入您的 API 密钥"
+  self_hosted_label: "或使用本地部署端点"
+  protocol_openai: "OpenAI 兼容（默认）"
+  protocol_anthropic: "Anthropic SDK"
+  language_label: "语言"
+  theme_label: "主题"
+  finish: "开始对话"
+commands:
+  unknown: "未知命令：{cmd}"
+  model_set: "模型已切换至 {model}"
+  mode_set: "模式已切换至 {mode}"
+  lang_set: "语言已切换至 {lang}"
+  theme_set: "主题已切换至 {theme}"
+  cleared: "对话已清空"
+  help_text: |
+    可用命令：
+    /model <名称>        切换模型
+    /mode <chat|plan|agent|yolo>   切换模式
+    /lang <en|zh_CN>     切换语言
+    /theme <名称>        切换主题
+    /attach <路径>       附加文件
+    /search <关键词>     搜索会话
+    /clear               清空对话
+    /tools               列出可用工具
+    /mcp                 MCP 服务器管理
+    /fork                复制会话
+    /save                保存会话
+    /load                加载会话
+    /protocol <openai|anthropic>   切换协议
+    /help                显示此帮助
+doctor:
+  title: "MiMo TUI — 诊断"
+  checking_api: "检查 API 密钥…"
+  api_ok: "API 密钥：正常"
+  api_fail: "API 密钥：失败（{error}）"
+  models_ok: "模型：{count} 个可用"
+  audio_ok: "音频：sounddevice 可用"
+  audio_fail: "音频：未安装 sounddevice（pip install mimo-tui[audio]）"
+  all_ok: "所有检查通过"

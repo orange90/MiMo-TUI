@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mimo-tui"
+version = "0.1.0"
+description = "A feature-rich terminal UI for Xiaomi MiMo — reasoning traces, TTS audio, multimodal, agent loop, MCP"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+authors = [
+    {name = "MiMo-TUI contributors"},
+]
+keywords = ["mimo", "xiaomi", "llm", "tui", "terminal", "agent", "mcp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Terminals",
+]
+
+dependencies = [
+    "textual>=0.80",
+    "rich>=13.7",
+    "httpx[http2]>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "typer>=0.12",
+    "pyyaml>=6.0",
+    "tomli-w>=1.0",
+    "pillow>=10.3",
+    "aiosqlite>=0.20",
+    "mcp>=1.0",
+    "anthropic>=0.28",
+    "anyio>=4.4",
+    "structlog>=24.1",
+]
+
+[project.optional-dependencies]
+audio = [
+    "sounddevice>=0.4.6",
+    "scipy>=1.13",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-textual-snapshot>=0.4",
+    "respx>=0.21",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "sounddevice>=0.4.6",
+    "scipy>=1.13",
+]
+
+[project.scripts]
+mimo = "mimo_tui.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mimo_tui"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"

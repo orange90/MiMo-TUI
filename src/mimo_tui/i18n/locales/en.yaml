@@ -1,0 +1,89 @@
+app_title: "MiMo TUI"
+status_bar:
+  model: "Model"
+  mode: "Mode"
+  tokens_in: "in"
+  tokens_out: "out"
+  latency: "latency"
+  playing: "Playing"
+chat:
+  placeholder: "Type a message… (/help for commands)"
+  you: "You"
+  assistant: "Assistant"
+  thinking: "Thinking…"
+  tool_call: "Tool Call"
+  tool_result: "Result"
+  empty_hint: "Start a conversation with MiMo"
+sessions:
+  title: "Sessions"
+  new: "+ New"
+  untitled: "Untitled"
+composer:
+  send: "Send"
+  attach: "Attach"
+  stop: "Stop"
+reasoning:
+  title: "Reasoning"
+  tokens: "tokens"
+  collapse: "Collapse"
+  expand: "Expand"
+audio:
+  play: "Play"
+  stop: "Stop"
+  save: "Save"
+  playing: "Playing audio…"
+approval:
+  title: "Tool Approval"
+  approve: "Approve"
+  deny: "Deny"
+  always_allow: "Always Allow"
+  danger: "DANGER"
+model_picker:
+  title: "Select Model"
+  search: "Search models…"
+first_run:
+  title: "Welcome to MiMo TUI"
+  step_api: "API Key Setup"
+  step_model: "Choose Model"
+  step_protocol: "Protocol"
+  step_prefs: "Preferences"
+  api_key_label: "MiMo API Key"
+  api_key_placeholder: "Enter your API key"
+  self_hosted_label: "Or use a self-hosted endpoint"
+  protocol_openai: "OpenAI-compatible (default)"
+  protocol_anthropic: "Anthropic SDK"
+  language_label: "Language"
+  theme_label: "Theme"
+  finish: "Start Chatting"
+commands:
+  unknown: "Unknown command: {cmd}"
+  model_set: "Model set to {model}"
+  mode_set: "Mode set to {mode}"
+  lang_set: "Language set to {lang}"
+  theme_set: "Theme set to {theme}"
+  cleared: "Conversation cleared"
+  help_text: |
+    Available commands:
+    /model <name>       Switch model
+    /mode <chat|plan|agent|yolo>   Switch mode
+    /lang <en|zh_CN>   Switch language
+    /theme <name>       Switch theme
+    /attach <path>      Attach a file
+    /search <query>     Search sessions
+    /clear              Clear conversation
+    /tools              List available tools
+    /mcp                MCP server manager
+    /fork               Fork this session
+    /save               Save session
+    /load               Load session
+    /protocol <openai|anthropic>   Switch protocol
+    /help               Show this message
+doctor:
+  title: "MiMo TUI — Doctor"
+  checking_api: "Checking API key…"
+  api_ok: "API key: OK"
+  api_fail: "API key: FAILED ({error})"
+  models_ok: "Models: {count} available"
+  audio_ok: "Audio: sounddevice available"
+  audio_fail: "Audio: sounddevice not installed (pip install mimo-tui[audio])"
+  all_ok: "All checks passed"
