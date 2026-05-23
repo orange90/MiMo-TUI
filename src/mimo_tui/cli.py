@@ -72,7 +72,7 @@ def doctor(
         try:
             import sounddevice  # noqa: F401
             typer.echo(f"  ✓ {t('doctor.audio_ok')}")
-        except ImportError:
+        except (ImportError, OSError):
             typer.echo(f"  ⚠ {t('doctor.audio_fail')}")
 
         typer.echo("─" * 40)
