@@ -24,16 +24,23 @@ Plus a **full agent loop** with plan / agent / yolo modes, per-tool approval, 8 
 
 ## Quick Start
 
-```bash
-# Install
-pip install mimo-tui
+> **Note:** Not yet published to PyPI. Install from source for now.
 
-# Or with TTS audio playback support
-pip install "mimo-tui[audio]"
+```bash
+# Clone and install from source
+git clone https://github.com/orange90/mimo-tui
+cd mimo-tui
+pip install -e ".[audio]"        # include [audio] for TTS playback support
 
 # Set your API key and launch
 export MIMO_API_KEY=your_key_here
 mimo
+```
+
+Or install directly from GitHub without cloning:
+
+```bash
+pip install "git+https://github.com/orange90/mimo-tui.git#egg=mimo-tui[audio]"
 ```
 
 On first run, a setup wizard walks you through:
@@ -286,16 +293,23 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 ## 快速开始
 
-```bash
-# 安装
-pip install mimo-tui
+> **提示：** 暂未发布到 PyPI，目前请从源码安装。
 
-# 或包含 TTS 语音播放支持
-pip install "mimo-tui[audio]"
+```bash
+# 克隆并从源码安装
+git clone https://github.com/orange90/mimo-tui
+cd mimo-tui
+pip install -e ".[audio]"        # 加 [audio] 以支持 TTS 语音播放
 
 # 设置 API 密钥并启动
 export MIMO_API_KEY=你的密钥
 mimo
+```
+
+也可以不用 clone，直接从 GitHub 安装：
+
+```bash
+pip install "git+https://github.com/orange90/mimo-tui.git#egg=mimo-tui[audio]"
 ```
 
 首次运行时，安装向导会引导你完成：
