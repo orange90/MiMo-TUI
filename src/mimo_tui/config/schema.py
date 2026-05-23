@@ -61,6 +61,17 @@ class MCPConfig(BaseModel):
     servers: list[MCPServer] = Field(default_factory=list)
 
 
+class ModelsCacheConfig(BaseModel):
+    """Cache of models advertised by the configured endpoint.
+
+    Populated automatically on app startup via ``GET /v1/models`` so that the
+    UI does not have to depend on a hard-coded list of known model ids.
+    """
+
+    available: list[str] = Field(default_factory=list)
+    synced_at: str = ""
+
+
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="MIMO_",
@@ -80,6 +91,7 @@ class AppConfig(BaseSettings):
     ui: UIConfig = Field(default_factory=UIConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
     mcp: MCPConfig = Field(default_factory=MCPConfig)
+    models: ModelsCacheConfig = Field(default_factory=ModelsCacheConfig)
 
     @field_validator("endpoint", mode="before")
     @classmethod
