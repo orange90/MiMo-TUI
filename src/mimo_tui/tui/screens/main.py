@@ -152,7 +152,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             return
         sessions = await self._store.list_sessions()
         sl = self.query_one(SessionsList)
-        sl.load_sessions([(s.id, s.title) for s in sessions])
+        await sl.load_sessions([(s.id, s.title) for s in sessions])
 
     # ── Approval callback ──
 
