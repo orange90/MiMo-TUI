@@ -38,10 +38,16 @@ def load_config() -> AppConfig:
     merged = _deep_merge(_deep_merge(defaults, user), local)
 
     api_key = os.environ.get("MIMO_API_KEY", "")
-    if api_key and not merged.get("endpoint", {}).get("api_key"):
+    if api_key:
         merged.setdefault("endpoint", {})["api_key"] = api_key
 
-    return AppConfig.model_validate(merged)
+    cfg = AppConfig.model_validate(merged)
+
+    if cfg.models.available:
+        from mimo_tui.providers.capabilities import set_known_models
+        set_known_models(cfg.models.available)
+
+    return cfg
 
 
 def save_config(cfg: AppConfig) -> None:

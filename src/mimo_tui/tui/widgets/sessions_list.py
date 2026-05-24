@@ -68,12 +68,12 @@ class SessionsList(Vertical):
         if sid.startswith("session-"):
             self.post_message(self.SessionSelected(sid[8:]))
 
-    def load_sessions(self, sessions: list[tuple[str, str]]) -> None:
+    async def load_sessions(self, sessions: list[tuple[str, str]]) -> None:
         lv = self.query_one("#sl-list", ListView)
-        lv.clear()
+        await lv.clear()
         for sid, title in sessions:
             item = ListItem(Label(title[:18]), id=f"session-{sid}")
-            lv.append(item)
+            await lv.append(item)
 
     def highlight_session(self, session_id: str) -> None:
         pass

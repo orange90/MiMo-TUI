@@ -36,8 +36,57 @@ def main(
     if mode and mode in ("chat", "plan", "agent", "yolo"):
         cfg.mode = mode  # type: ignore[assignment]
 
+    _sync_available_models(cfg)
+
     from mimo_tui.app import MimoApp
     MimoApp(cfg).run()
+
+
+def _sync_available_models(cfg) -> None:  # type: ignore[no-untyped-def]
+    """Refresh the cached list of API-supported models on every startup.
+
+    Best-effort: any network/parse error is silently ignored so the TUI still
+    starts when offline. On success we:
+      * update the in-memory KNOWN_MODELS list (used by ModelPicker, etc.)
+      * persist ``[models] available`` + ``synced_at`` back to config.toml
+      * if ``cfg.model.name`` is not in the live list, switch to the first
+        live model so requests don't 400 with "Not supported model …"
+    """
+    if not cfg.endpoint.api_key:
+        return
+
+    import asyncio
+    from datetime import datetime
+
+    from mimo_tui.client.openai_client import OpenAIClient
+    from mimo_tui.config.loader import save_config
+    from mimo_tui.providers.capabilities import set_known_models
+
+    async def _fetch() -> list[str]:
+        async with OpenAIClient(cfg) as client:
+            return await client.list_models()
+
+    try:
+        models = asyncio.run(_fetch())
+    except Exception:
+        return
+
+    if not models:
+        return
+
+    set_known_models(models)
+
+    cfg.models.available = list(models)
+    cfg.models.synced_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+    available_lower = {m.lower() for m in models}
+    if cfg.model.name.lower() not in available_lower:
+        cfg.model.name = models[0]
+
+    try:
+        save_config(cfg)
+    except Exception:
+        pass
 
 
 @app.command(name="doctor", help="Check configuration and connectivity")
