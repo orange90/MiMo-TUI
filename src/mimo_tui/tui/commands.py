@@ -22,6 +22,8 @@ COMMANDS: list[Command] = [
     Command("search", "Search sessions: /search <query>", "cmd_search"),
     Command("tools", "List available tools", "cmd_tools"),
     Command("mcp", "Open MCP server manager", "cmd_mcp"),
+    Command("plan", "Set plan: /plan <description>", "cmd_plan"),
+    Command("todo", "Add todo: /todo <item>", "cmd_todo"),
     Command("fork", "Fork this session", "cmd_fork"),
     Command("save", "Save session", "cmd_save"),
     Command("load", "Load session", "cmd_load"),

@@ -16,7 +16,7 @@ class MimoApp(App):  # type: ignore[type-arg]
     TITLE = "MiMo TUI"
     CSS = """
     Screen {
-        background: $surface;
+        background: #1a1b2e;
     }
     """
 

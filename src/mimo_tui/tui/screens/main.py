@@ -1,4 +1,4 @@
-"""Main application screen — three-pane layout with streaming agent loop."""
+"""Main application screen — Claude Code style layout with right sidebar panels."""
 from __future__ import annotations
 
 import asyncio
@@ -11,6 +11,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.screen import Screen
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
 
 from mimo_tui.agent.approval import ApprovalCallback, ApprovalRequest
@@ -41,8 +42,10 @@ from mimo_tui.tui.commands import parse_command
 from mimo_tui.tui.theme import THEMES, get_theme_css
 from mimo_tui.tui.widgets.chat_log import ChatLog
 from mimo_tui.tui.widgets.composer import Composer
+from mimo_tui.tui.widgets.header_bar import HeaderBar
 from mimo_tui.tui.widgets.reasoning_pane import ReasoningPane
 from mimo_tui.tui.widgets.sessions_list import SessionsList
+from mimo_tui.tui.widgets.sidebar_panel import RightSidebar
 from mimo_tui.tui.widgets.status_bar import StatusBar
 
 
@@ -53,12 +56,15 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         Binding("ctrl+l", "toggle_lang", "Lang"),
         Binding("ctrl+t", "toggle_theme", "Theme"),
         Binding("ctrl+n", "new_session", "New"),
+        Binding("ctrl+s", "toggle_sessions", "Sessions"),
+        Binding("ctrl+b", "toggle_sidebar", "Sidebar"),
         Binding("ctrl+q", "quit_app", "Quit"),
     ]
 
     DEFAULT_CSS = """
     MainScreen {
         layout: vertical;
+        background: #1a1b2e;
     }
     #main-body {
         layout: horizontal;
@@ -67,6 +73,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
     #center-pane {
         layout: vertical;
         width: 1fr;
+        background: #1a1b2e;
     }
     """
 
@@ -84,11 +91,14 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._pending_tool_name: str | None = None
         self._mcp = MCPManager()
         self._stream_task: asyncio.Task[None] | None = None
+        self._reasoning_start: float = 0.0
+        self._task_counter = 0
 
     def compose(self) -> ComposeResult:
-        with Static(id="main-body"):
+        yield HeaderBar(model=self._cfg.model.name, mode=self._cfg.mode)
+        with Horizontal(id="main-body"):
             yield SessionsList()
-            with Static(id="center-pane"):
+            with Vertical(id="center-pane"):
                 yield ChatLog()
                 yield Composer(placeholder=t("chat.placeholder"))
             rp_hidden = self._cfg.ui.reasoning_pane == "hidden"
@@ -97,6 +107,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             if rp_hidden:
                 rp.display = False
             yield rp
+            yield RightSidebar()
         yield StatusBar()
 
     async def on_mount(self) -> None:
@@ -106,7 +117,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._client = get_client(self._cfg)
         registry = build_registry(self._cfg)
 
-        # Start MCP servers
         for srv in self._cfg.mcp.servers:
             if srv.enabled:
                 await self._mcp.start_server(srv)
@@ -132,6 +142,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             lang=self._cfg.language,
         )
 
+        self.query_one(HeaderBar).update_model(self._cfg.model.name)
         self.query_one(Composer).focus_input()
 
         chat = self.query_one(ChatLog)
@@ -154,13 +165,13 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         sl = self.query_one(SessionsList)
         await sl.load_sessions([(s.id, s.title) for s in sessions])
 
-    # ── Approval callback ──
+    # -- Approval callback --
 
     async def _approval_callback(self, req: ApprovalRequest) -> bool:
         from mimo_tui.tui.screens.approval import ApprovalModal
         return await self.app.push_screen_wait(ApprovalModal(req))  # type: ignore[return-value]
 
-    # ── Message handlers ──
+    # -- Message handlers --
 
     async def on_composer_message_submitted(self, event: Composer.MessageSubmitted) -> None:
         text = event.text.strip()
@@ -178,7 +189,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         if self._stream_task and not self._stream_task.done():
             self._stream_task.cancel()
         self._set_streaming(False)
-        self.query_one(ChatLog).write_system_message("Stopped.", style="dim red")
+        self.query_one(ChatLog).write_system_message("Stopped.", style="dim #f7768e")
 
     async def on_sessions_list_new_session_requested(self, _: SessionsList.NewSessionRequested) -> None:
         await self._new_session()
@@ -210,7 +221,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         if self._loop:
             self._loop.load_history(history)
 
-    # ── Send message & stream ──
+    # -- Send message & stream --
 
     async def _send_message(self, text: str) -> None:
         if self._streaming:
@@ -220,7 +231,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
         if self._store and self._session_id:
             await self._store.add_message(self._session_id, "user", text)
-            # Auto-title from first message
             sessions = await self._store.list_sessions()
             for s in sessions:
                 if s.id == self._session_id and s.title == "Untitled":
@@ -231,6 +241,13 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._set_streaming(True)
         chat.begin_assistant_message()
         self.query_one(ReasoningPane).begin_turn()
+        self._reasoning_start = time.monotonic()
+
+        # Update tasks in sidebar
+        self._task_counter += 1
+        sidebar = self.query_one(RightSidebar)
+        task_label = f"turn {self._session_id[:8] if self._session_id else ''}... (in progress)"
+        sidebar.tasks_section.set_items([task_label])
 
         self._audio_buf = b""
         self._audio_mime = "audio/wav"
@@ -242,18 +259,28 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         chat = self.query_one(ChatLog)
         rp = self.query_one(ReasoningPane)
         sb = self.query_one(StatusBar)
+        sidebar = self.query_one(RightSidebar)
         content_buf = ""
         reasoning_buf = ""
+        reasoning_started = False
 
         try:
             assert self._loop is not None
             async for event in self._loop.run(text):
                 if isinstance(event, TextEvent):
+                    if reasoning_started:
+                        elapsed = time.monotonic() - self._reasoning_start
+                        chat.end_thinking(elapsed)
+                        reasoning_started = False
                     content_buf += event.text
                     chat.append_assistant_chunk(event.text)
 
                 elif isinstance(event, ReasoningEvent):
+                    if not reasoning_started:
+                        chat.begin_thinking()
+                        reasoning_started = True
                     reasoning_buf += event.text
+                    chat.append_thinking(event.text)
                     rp.append_reasoning(event.text)
 
                 elif isinstance(event, AudioEvent):
@@ -263,6 +290,10 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         await self._play_audio()
 
                 elif isinstance(event, ToolCallStartEvent):
+                    if reasoning_started:
+                        elapsed = time.monotonic() - self._reasoning_start
+                        chat.end_thinking(elapsed)
+                        reasoning_started = False
                     self._pending_tool_name = event.tool_name
                     chat.flush_assistant_stream()
                     content_buf = ""
@@ -275,7 +306,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         event.approved,
                     )
                     if self._store and self._session_id:
-                        pass  # tool call stored when message appended in loop
+                        pass
 
                 elif isinstance(event, UsageEvent):
                     sb.update_all(
@@ -285,22 +316,34 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     )
 
                 elif isinstance(event, ErrorEvent):
+                    if reasoning_started:
+                        chat.end_thinking()
+                        reasoning_started = False
                     chat.flush_assistant_stream()
                     chat.write_error(event.message)
 
                 elif isinstance(event, DoneEvent):
+                    if reasoning_started:
+                        elapsed = time.monotonic() - self._reasoning_start
+                        chat.end_thinking(elapsed)
+                        reasoning_started = False
                     chat.flush_assistant_stream()
-                    # If TTS model and audio collected but not flushed yet
                     if self._audio_buf:
                         await self._play_audio()
                     if self._store and self._session_id and content_buf:
                         await self._store.add_message(
                             self._session_id, "assistant", content_buf, reasoning_buf
                         )
+                    task_label = f"turn {self._session_id[:8] if self._session_id else ''}... (completed)"
+                    sidebar.tasks_section.set_items([task_label])
 
         except asyncio.CancelledError:
+            if reasoning_started:
+                chat.end_thinking()
             chat.flush_assistant_stream()
         except Exception as e:
+            if reasoning_started:
+                chat.end_thinking()
             chat.flush_assistant_stream()
             chat.write_error(str(e))
         finally:
@@ -331,7 +374,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         except Exception:
             pass
 
-    # ── Actions ──
+    # -- Actions --
 
     async def action_open_model_picker(self) -> None:
         from mimo_tui.tui.screens.model_picker import ModelPicker
@@ -358,10 +401,17 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             approval_cb=self._approval_callback,
         )
         self.query_one(StatusBar).update_all(model=model)
+        self.query_one(HeaderBar).update_model(model)
         self.query_one(ChatLog).write_system_message(t("commands.model_set", model=model))
 
     def action_toggle_reasoning(self) -> None:
         self.query_one(ReasoningPane).toggle_collapse()
+
+    def action_toggle_sessions(self) -> None:
+        self.query_one(SessionsList).toggle_collapse()
+
+    def action_toggle_sidebar(self) -> None:
+        self.query_one(RightSidebar).toggle_collapse()
 
     def action_toggle_lang(self) -> None:
         new_lang = "zh_CN" if self._cfg.language == "en" else "en"
@@ -386,11 +436,14 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
         await self._refresh_sessions_list()
+        sidebar = self.query_one(RightSidebar)
+        sidebar.tasks_section.clear_items()
+        sidebar.plan_section.clear_items()
 
     def action_quit_app(self) -> None:
         self.app.exit()
 
-    # ── Slash command handlers ──
+    # -- Slash command handlers --
 
     async def _handle_command(self, cmd: str, args: list[str]) -> None:
         chat = self.query_one(ChatLog)
@@ -468,6 +521,22 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             names = registry.names()
             chat.write_system_message("Available tools: " + ", ".join(names))
 
+        elif cmd == "plan":
+            sidebar = self.query_one(RightSidebar)
+            if args:
+                sidebar.plan_section.set_items([" ".join(args)])
+                chat.write_system_message("Plan updated.")
+            else:
+                chat.write_system_message("Usage: /plan <description>")
+
+        elif cmd == "todo":
+            sidebar = self.query_one(RightSidebar)
+            if args:
+                sidebar.todos_section.add_item(" ".join(args))
+                chat.write_system_message("Todo added.")
+            else:
+                chat.write_system_message("Usage: /todo <item>")
+
         elif cmd == "help":
             chat.write_system_message(t("commands.help_text"))
 
@@ -514,7 +583,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         try:
             block = build_image_content(p)
             chat.write_system_message(f"Attached: {path} ({p.stat().st_size} bytes)")
-            # Prepend image to next user message by storing in loop state
             if self._loop:
                 self._loop._pending_attachment = block  # type: ignore[attr-defined]
         except Exception as e:
