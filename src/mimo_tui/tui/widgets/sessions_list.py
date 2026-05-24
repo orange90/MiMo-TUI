@@ -1,37 +1,46 @@
-"""Left sidebar listing sessions."""
+"""Left sidebar listing sessions — hidden by default in Claude Code style."""
 from __future__ import annotations
 
 from textual.app import ComposeResult
+from textual.containers import Vertical
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Button, Label, ListItem, ListView, Static
 
 
-class SessionsList(Static):
+class SessionsList(Vertical):
     DEFAULT_CSS = """
     SessionsList {
-        width: 20;
-        border-right: solid $border;
+        width: 22;
+        border-right: solid #29a4bd;
         padding: 0;
-        background: $surface-darken-2;
+        background: #16213e;
+    }
+    SessionsList.collapsed {
+        width: 0;
+        display: none;
     }
     SessionsList #sl-header {
         height: 1;
         padding: 0 1;
-        color: $text-muted;
+        color: #e0af68;
         text-style: bold;
+        background: #1f2335;
     }
     SessionsList #sl-new {
         height: 1;
         margin: 0 1;
-        background: $success;
-        color: $on-success;
+        background: #29a4bd;
+        color: #1a1b2e;
         border: none;
     }
     SessionsList #sl-list {
         height: 1fr;
+        background: #16213e;
     }
     """
+
+    collapsed: reactive[bool] = reactive(True)
 
     class SessionSelected(Message):
         def __init__(self, session_id: str) -> None:
@@ -40,6 +49,10 @@ class SessionsList(Static):
 
     class NewSessionRequested(Message):
         pass
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.add_class("collapsed")
 
     def compose(self) -> ComposeResult:
         yield Static("Sessions", id="sl-header")
@@ -63,4 +76,12 @@ class SessionsList(Static):
             lv.append(item)
 
     def highlight_session(self, session_id: str) -> None:
-        pass  # future: scroll to and highlight active session
+        pass
+
+    def toggle_collapse(self) -> None:
+        if self.collapsed:
+            self.remove_class("collapsed")
+            self.collapsed = False
+        else:
+            self.add_class("collapsed")
+            self.collapsed = True

@@ -63,5 +63,5 @@ async def run_migrations(db: aiosqlite.Connection) -> None:
     for i, sql in enumerate(_MIGRATIONS):
         if i >= current:
             await db.executescript(sql)
-            await db.execute("UPDATE schema_version SET version = ?", (i + 1,))
+            await db.execute("INSERT OR REPLACE INTO schema_version VALUES (?)", (i + 1,))
     await db.commit()

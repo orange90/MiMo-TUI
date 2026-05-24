@@ -1,35 +1,37 @@
-"""Multi-line input with slash-command autocomplete."""
+"""Claude Code style composer — bottom input with label."""
 from __future__ import annotations
 
 from textual.app import ComposeResult
+from textual.containers import Vertical
 from textual.message import Message
-from textual.widgets import Button, Input, Static
+from textual.widgets import Input, Static
 
 from mimo_tui.tui.commands import completions_for
 
 
-class Composer(Static):
+class Composer(Vertical):
     DEFAULT_CSS = """
     Composer {
-        height: 5;
-        border-top: solid $border;
-        background: $surface-darken-1;
+        height: 4;
+        background: #16213e;
         padding: 0 1;
+        border-top: solid #29a4bd;
+    }
+    Composer #compose-label {
+        height: 1;
+        color: #565f89;
     }
     Composer #compose-input {
-        height: 3;
+        height: 1;
         border: none;
-        background: $surface;
+        background: #1a1b2e;
+        color: #c0caf5;
+        padding: 0 1;
     }
     Composer #compose-hint {
         height: 1;
-        color: $text-muted;
+        color: #565f89;
         text-style: italic;
-    }
-    Composer #compose-send {
-        dock: right;
-        height: 3;
-        width: 8;
     }
     """
 
@@ -41,15 +43,15 @@ class Composer(Static):
     class StopRequested(Message):
         pass
 
-    def __init__(self, placeholder: str = "Type a message… (/help for commands)") -> None:
+    def __init__(self, placeholder: str = "Write a task or use /.") -> None:
         super().__init__()
         self._placeholder = placeholder
         self._streaming = False
 
     def compose(self) -> ComposeResult:
+        yield Static("[dim]Composer[/]", id="compose-label")
         yield Input(placeholder=self._placeholder, id="compose-input")
         yield Static("", id="compose-hint")
-        yield Button("Send", id="compose-send", variant="primary")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         text = event.value
@@ -63,14 +65,10 @@ class Composer(Static):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self._submit()
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "compose-send":
-            if self._streaming:
-                self.post_message(self.StopRequested())
-            else:
-                self._submit()
-
     def _submit(self) -> None:
+        if self._streaming:
+            self.post_message(self.StopRequested())
+            return
         inp = self.query_one("#compose-input", Input)
         text = inp.value.strip()
         if not text:
@@ -81,10 +79,11 @@ class Composer(Static):
 
     def set_streaming(self, streaming: bool) -> None:
         self._streaming = streaming
-        btn = self.query_one("#compose-send", Button)
-        btn.label = "Stop" if streaming else "Send"
-        btn.variant = "error" if streaming else "primary"
         inp = self.query_one("#compose-input", Input)
+        if streaming:
+            inp.placeholder = "Press Enter to stop..."
+        else:
+            inp.placeholder = self._placeholder
         inp.disabled = streaming
 
     def focus_input(self) -> None:
