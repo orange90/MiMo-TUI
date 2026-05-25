@@ -1,9 +1,14 @@
 """Bottom status bar — Claude Code style with mode and cost display."""
 from __future__ import annotations
 
+import time
+
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Static
+
+
+SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
 
 class StatusBar(Horizontal):
@@ -37,10 +42,40 @@ class StatusBar(Horizontal):
         self._lang = "en"
         self._audio_playing = False
         self._context_window = 0
+        self._activity: str | None = None
+        self._activity_started_at: float = 0.0
+        self._spinner_idx = 0
+        self._spinner_timer: object | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("", id="sb-left")
         yield Static("", id="sb-right")
+
+    def on_mount(self) -> None:
+        # Drive the spinner ~10 fps so the "working in progress" indicator
+        # stays alive even when the agent is stuck on a slow tool / network IO.
+        self._spinner_timer = self.set_interval(0.1, self._tick_spinner)
+
+    def _tick_spinner(self) -> None:
+        if self._activity is None:
+            return
+        self._spinner_idx = (self._spinner_idx + 1) % len(SPINNER_FRAMES)
+        self._render_bar()
+
+    def set_activity(self, label: str | None) -> None:
+        """Show or clear the live activity indicator on the left of the status bar.
+
+        Pass a short label like "thinking", "running write_file", "calling api"
+        to start the spinner; pass None to clear it.
+        """
+        if label:
+            self._activity = label
+            self._activity_started_at = time.monotonic()
+            self._spinner_idx = 0
+        else:
+            self._activity = None
+            self._activity_started_at = 0.0
+        self._render_bar()
 
     def update_all(
         self,
@@ -86,6 +121,13 @@ class StatusBar(Horizontal):
         left_parts = [self._mode, model_short]
         if self._audio_playing:
             left_parts.append("playing")
+        if self._activity:
+            frame = SPINNER_FRAMES[self._spinner_idx]
+            elapsed = time.monotonic() - self._activity_started_at
+            left_parts.append(
+                f"[#7aa2f7]{frame}[/] [#e0af68]{self._activity}[/] "
+                f"[dim]· working in progress · {elapsed:.1f}s[/]"
+            )
         left = " [dim]·[/] ".join(left_parts)
 
         right_parts: list[str] = []

@@ -66,6 +66,13 @@ class ToolCallArgFragEvent:
 
 
 @dataclass
+class ToolCallExecutingEvent:
+    call_id: str
+    tool_name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
 class ToolCallResultEvent:
     call_id: str
     tool_name: str
@@ -97,6 +104,7 @@ AgentEvent = (
     | AudioEvent
     | ToolCallStartEvent
     | ToolCallArgFragEvent
+    | ToolCallExecutingEvent
     | ToolCallResultEvent
     | UsageEvent
     | ErrorEvent
@@ -306,6 +314,11 @@ class AgentLoop:
                             approved = await self._approval_cb(req_approval)
 
                     if approved:
+                        yield ToolCallExecutingEvent(
+                            call_id=tc.id,
+                            tool_name=tc.name,
+                            arguments=args,
+                        )
                         try:
                             result = await tool.run(**args)
                         except Exception as e:

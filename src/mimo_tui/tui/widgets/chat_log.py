@@ -106,6 +106,50 @@ class ChatLog(RichLog):
             result_style = "dim #9ece6a" if approved else "dim #f7768e"
             self.write(Text(f"    -> {preview}", style=result_style), shrink=False)
 
+    def write_tool_start(self, tool_name: str) -> None:
+        """Show that a tool call has started — emitted as soon as the model picks the tool."""
+        self._flush_current()
+        self.write(
+            Text.from_markup(
+                f"  [bold #7aa2f7]>[/] [bold #e0af68]{tool_name}[/] [dim #565f89]preparing\u2026[/]"
+            ),
+            shrink=False,
+        )
+
+    def write_tool_progress(self, label: str, value: str = "") -> None:
+        """Show an inline progress note under a running tool call."""
+        if value:
+            line = f"    [dim #7aa2f7]{label}[/] [dim #c0caf5]{value}[/]"
+        else:
+            line = f"    [dim #7aa2f7]{label}[/]"
+        self.write(Text.from_markup(line), shrink=False)
+
+    def write_tool_executing(self, tool_name: str, summary: str = "") -> None:
+        """Show that the tool is actually running now (after approval / arg parse)."""
+        msg = f"    [dim #e0af68]\u00b7 executing {tool_name}\u2026[/]"
+        if summary:
+            msg += f" [dim #565f89]{summary}[/]"
+        self.write(Text.from_markup(msg), shrink=False)
+        self.write(
+            Text.from_markup(
+                "    [dim #7aa2f7]\u22ef working in progress\u2026 (see status bar for live indicator)[/]"
+            ),
+            shrink=False,
+        )
+
+    def write_tool_done(self, tool_name: str, result: str, approved: bool, elapsed_ms: float = 0.0) -> None:
+        """Finalize a streaming tool call — print outcome and optional duration."""
+        status = "[bold #9ece6a]v done[/]" if approved else "[bold #f7768e]x failed[/]"
+        timing = f" [dim]\u00b7 {elapsed_ms:.0f}ms[/]" if elapsed_ms else ""
+        self.write(
+            Text.from_markup(f"    {status} [dim #e0af68]{tool_name}[/]{timing}"),
+            shrink=False,
+        )
+        if result:
+            preview = result[:300] + ("\u2026" if len(result) > 300 else "")
+            result_style = "dim #9ece6a" if approved else "dim #f7768e"
+            self.write(Text(f"    -> {preview}", style=result_style), shrink=False)
+
     def write_system_message(self, text: str, style: str = "dim italic") -> None:
         self._flush_current()
         self.write(Text(f"  {text}", style=style))
