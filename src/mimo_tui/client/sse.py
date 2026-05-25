@@ -47,19 +47,19 @@ async def parse_sse_stream(
 
         # usage-only chunk (no choices)
         if "usage" in obj and not obj.get("choices"):
-            u = obj["usage"]
+            u = obj.get("usage") or {}
             yield UsageDelta(
                 prompt_tokens=u.get("prompt_tokens", 0),
                 completion_tokens=u.get("completion_tokens", 0),
             )
             continue
 
-        choices = obj.get("choices", [])
+        choices = obj.get("choices") or []
         if not choices:
             continue
 
         choice = choices[0]
-        delta = choice.get("delta", {})
+        delta = choice.get("delta") or {}
         finish_reason = choice.get("finish_reason")
 
         # reasoning content (MiMo extension)
@@ -73,7 +73,7 @@ async def parse_sse_stream(
             yield ContentDelta(text=content)
 
         # audio (TTS models return audio field)
-        audio = delta.get("audio")
+        audio = delta.get("audio") or None
         if audio:
             import base64
             raw_b64 = audio.get("data", "")
@@ -85,13 +85,13 @@ async def parse_sse_stream(
                 )
 
         # tool calls
-        tool_calls = delta.get("tool_calls", [])
+        tool_calls = delta.get("tool_calls") or []
         for tc in tool_calls:
             idx = tc.get("index", 0)
             tc_id = tc.get("id")
-            fn = tc.get("function", {})
+            fn = tc.get("function") or {}
             name = fn.get("name")
-            args_frag = fn.get("arguments", "")
+            args_frag = fn.get("arguments", "") or ""
 
             tool_arg_buffers[idx] += args_frag
 
@@ -112,7 +112,7 @@ async def parse_sse_stream(
 
         # usage on final chunk
         if "usage" in obj:
-            u = obj["usage"]
+            u = obj.get("usage") or {}
             yield UsageDelta(
                 prompt_tokens=u.get("prompt_tokens", 0),
                 completion_tokens=u.get("completion_tokens", 0),

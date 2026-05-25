@@ -301,7 +301,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                 elif isinstance(event, ToolCallResultEvent):
                     chat.write_tool_call(
                         event.tool_name,
-                        json.dumps(event.arguments)[:100],
+                        json.dumps(event.arguments, ensure_ascii=False)[:100],
                         event.result,
                         event.approved,
                     )

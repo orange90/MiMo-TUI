@@ -42,7 +42,7 @@ class ApprovalModal(ModalScreen[bool]):
             yield Label(t("approval.title"), id="ap-title")
             yield Label(f"Tool: {r.tool_name}", id="ap-tool")
             try:
-                args_str = json.dumps(r.arguments, indent=2)[:500]
+                args_str = json.dumps(r.arguments, indent=2, ensure_ascii=False)[:500]
             except Exception:
                 args_str = str(r.arguments)[:500]
             yield Label(f"Args:\n{args_str}", id="ap-args")

@@ -31,12 +31,12 @@ class TodoWriteTool(BaseTool):
 
     def _load(self) -> list[dict[str, Any]]:
         if _TODO_FILE.exists():
-            return json.loads(_TODO_FILE.read_text())  # type: ignore[no-any-return]
+            return json.loads(_TODO_FILE.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
         return []
 
     def _save(self, todos: list[dict[str, Any]]) -> None:
         _TODO_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _TODO_FILE.write_text(json.dumps(todos, indent=2))
+        _TODO_FILE.write_text(json.dumps(todos, indent=2, ensure_ascii=False), encoding="utf-8")
 
     async def run(self, action: str, text: str = "", index: int = 0, **_: Any) -> str:
         todos = self._load()

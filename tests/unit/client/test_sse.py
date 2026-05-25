@@ -75,3 +75,38 @@ async def test_skip_non_data_lines() -> None:
     resp = _make_response(["", ": keep-alive", "data: [DONE]"])
     deltas = [d async for d in parse_sse_stream(resp)]
     assert any(isinstance(d, DoneDelta) for d in deltas)
+
+
+@pytest.mark.asyncio
+async def test_explicit_null_fields_do_not_crash() -> None:
+    """Regression: some upstream servers emit explicit nulls instead of omitting fields.
+
+    Iterating ``None`` previously raised ``TypeError: 'NoneType' object is not iterable``.
+    """
+    chunk = {
+        "choices": [
+            {
+                "delta": {
+                    "content": "hi",
+                    "tool_calls": None,
+                    "audio": None,
+                    "reasoning_content": None,
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": None,
+    }
+    resp = _make_response([f"data: {json.dumps(chunk)}", "data: [DONE]"])
+    deltas = [d async for d in parse_sse_stream(resp)]
+    assert any(isinstance(d, ContentDelta) and d.text == "hi" for d in deltas)
+    assert any(isinstance(d, DoneDelta) for d in deltas)
+
+
+@pytest.mark.asyncio
+async def test_null_choices_does_not_crash() -> None:
+    """Regression: ``choices: null`` must not crash the parser."""
+    chunk = {"choices": None, "usage": {"prompt_tokens": 1, "completion_tokens": 2}}
+    resp = _make_response([f"data: {json.dumps(chunk)}", "data: [DONE]"])
+    deltas = [d async for d in parse_sse_stream(resp)]
+    assert any(isinstance(d, UsageDelta) for d in deltas)
