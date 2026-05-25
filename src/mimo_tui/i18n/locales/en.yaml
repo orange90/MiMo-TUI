@@ -62,6 +62,11 @@ commands:
   lang_set: "Language set to {lang}"
   theme_set: "Theme set to {theme}"
   cleared: "Conversation cleared"
+  compact_running: "Compacting conversation…"
+  compact_done: "Conversation compacted. Continuing with the summary below."
+  compact_empty: "Nothing to compact — conversation is empty."
+  compact_busy: "Cannot compact while a response is streaming."
+  compact_failed: "Compact failed: {error}"
   help_text: |
     Available commands:
     /model <name>       Switch model
@@ -71,6 +76,7 @@ commands:
     /attach <path>      Attach a file
     /search <query>     Search sessions
     /clear              Clear conversation
+    /compact [focus]    Summarize history to free context
     /tools              List available tools
     /mcp                MCP server manager
     /fork               Fork this session

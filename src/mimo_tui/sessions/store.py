@@ -105,6 +105,14 @@ class SessionStore:
         await self.touch_session(session_id)
         return MessageRow(id=mid, session_id=session_id, role=role, content=content, reasoning=reasoning, created_at=now)
 
+    async def delete_messages(self, session_id: str) -> None:
+        self._enqueue(
+            "DELETE FROM messages_fts WHERE rowid IN (SELECT rowid FROM messages WHERE session_id=?)",
+            (session_id,),
+        )
+        self._enqueue("DELETE FROM messages WHERE session_id=?", (session_id,))
+        await self.touch_session(session_id)
+
     async def list_messages(self, session_id: str) -> list[MessageRow]:
         assert self._db is not None
         cursor = await self._db.execute(
