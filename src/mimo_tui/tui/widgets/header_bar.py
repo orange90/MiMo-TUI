@@ -6,7 +6,7 @@ from textual.containers import Horizontal
 from textual.widgets import Static
 
 
-XIAOMI_LOGO = "小米"
+XIAOMI_LOGO_TEXT = "[on #FF6700] MI [/]"
 
 
 class HeaderBar(Horizontal):
@@ -15,7 +15,7 @@ class HeaderBar(Horizontal):
         dock: top;
         height: 1;
         background: #1a1b2e;
-        color: #7aa2f7;
+        color: #FF6700;
         padding: 0 1;
     }
     HeaderBar #hb-left {
@@ -40,7 +40,7 @@ class HeaderBar(Horizontal):
 
     def _build_left(self) -> str:
         model_short = self._model.split("/")[-1] if self._model else "mimo"
-        return f"[bold #ff6700]{XIAOMI_LOGO}[/] [bold]Agent[/]  [dim]mimo-tui[/] [dim]·[/] {model_short}"
+        return f"{XIAOMI_LOGO_TEXT} [bold #FF6700]XiaoMiMo Agent[/]  [dim]mimo-tui[/] [dim]·[/] {model_short}"
 
     def update_model(self, model: str) -> None:
         self._model = model

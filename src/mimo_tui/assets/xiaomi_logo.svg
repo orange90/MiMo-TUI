@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Super-ellipse (squircle) background matching Xiaomi's 2021 logo shape -->
+  <path d="M100 2 C148 2 168 2 182 16 C198 32 198 52 198 100 C198 148 198 168 182 184 C168 198 148 198 100 198 C52 198 32 198 16 184 C2 168 2 148 2 100 C2 52 2 32 16 16 C32 2 52 2 100 2Z" fill="#FF6700"/>
+  <!-- "m" left vertical -->
+  <rect x="34" y="56" width="16" height="100" rx="1" fill="white"/>
+  <!-- "m" arch top connecting left to right -->
+  <path d="M42 72 L42 56 C42 42 54 34 68 34 L94 34 C108 34 118 42 118 56 L118 72" fill="none" stroke="white" stroke-width="16"/>
+  <!-- "m" center vertical -->
+  <rect x="72" y="34" width="16" height="122" rx="1" fill="white"/>
+  <!-- "m" right vertical -->
+  <rect x="110" y="34" width="16" height="122" rx="1" fill="white"/>
+  <!-- "i" vertical -->
+  <rect x="148" y="34" width="16" height="122" rx="1" fill="white"/>
+</svg>

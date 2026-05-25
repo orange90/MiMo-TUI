@@ -31,7 +31,7 @@ class ChatLog(RichLog):
     def begin_user_message(self, text: str) -> None:
         self._flush_current()
         self.write(Text(""))
-        self.write(Text("You ", style="bold #7dcfff"), shrink=False)
+        self.write(Text("You ", style="bold #FF8C33"), shrink=False)
         self.write(Markdown(text))
         self._current_role = None
 
@@ -100,7 +100,7 @@ class ChatLog(RichLog):
 
     def write_audio_card(self, audio_id: str) -> None:
         self._flush_current()
-        self.write(Text.from_markup(f"  [bold #7dcfff]>> Audio response[/] [dim][id={audio_id}][/]"), shrink=False)
+        self.write(Text.from_markup(f"  [bold #FF8C33]>> Audio response[/] [dim][id={audio_id}][/]"), shrink=False)
 
     def write_error(self, text: str) -> None:
         self._flush_current()

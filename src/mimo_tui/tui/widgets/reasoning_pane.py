@@ -14,7 +14,7 @@ class ReasoningPane(Vertical):
     DEFAULT_CSS = """
     ReasoningPane {
         width: 30%;
-        border-left: solid #29a4bd;
+        border-left: solid #FF6700;
         padding: 0 1;
         background: #16213e;
     }
@@ -24,7 +24,7 @@ class ReasoningPane(Vertical):
     }
     ReasoningPane #rp-header {
         height: 1;
-        color: #e0af68;
+        color: #FF6700;
         text-style: bold;
     }
     ReasoningPane #rp-log {
@@ -57,7 +57,7 @@ class ReasoningPane(Vertical):
         self._token_count = 0
         self._turn_count += 1
         log_widget = self.query_one("#rp-log", RichLog)
-        log_widget.write(Text(f"\n-- Turn {self._turn_count} --", style="dim #7aa2f7"))
+        log_widget.write(Text(f"\n-- Turn {self._turn_count} --", style="dim #FF6700"))
 
     def append_reasoning(self, text: str) -> None:
         self._token_count += len(text.split())
