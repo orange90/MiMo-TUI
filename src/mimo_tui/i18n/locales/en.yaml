@@ -38,6 +38,13 @@ approval:
   deny: "Deny"
   always_allow: "Always Allow"
   danger: "DANGER"
+plan_approval:
+  title: "Plan Ready — Approve to Execute?"
+  hint: "Review the plan above. Approve to switch to agent mode and begin execution, or keep planning to refine it."
+  approve: "Approve & Run"
+  keep_planning: "Keep Planning"
+  approved_msg: "Plan approved. Switched to agent mode — send your next message to begin execution."
+  denied_msg: "Staying in plan mode. Send refinements or a new plan request."
 model_picker:
   title: "Select Model"
   search: "Search models…"

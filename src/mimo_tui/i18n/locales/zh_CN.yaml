@@ -38,6 +38,13 @@ approval:
   deny: "拒绝"
   always_allow: "始终允许"
   danger: "危险"
+plan_approval:
+  title: "计划已就绪 — 是否批准执行？"
+  hint: "请审阅上方的计划。批准后将切换至 agent 模式并开始执行；继续规划则可在 plan 模式中进一步完善。"
+  approve: "批准并执行"
+  keep_planning: "继续规划"
+  approved_msg: "计划已批准。已切换至 agent 模式 — 发送下一条消息以开始执行。"
+  denied_msg: "保持 plan 模式。请发送修改意见或新的规划请求。"
 model_picker:
   title: "选择模型"
   search: "搜索模型…"
