@@ -15,6 +15,7 @@ class ModelCapabilities:
     vision: bool = False
     audio_out: bool = False
     tools: bool = False
+    context_window: int = 32768
 
     def badge_str(self) -> str:
         badges = []
@@ -30,25 +31,25 @@ class ModelCapabilities:
 
 
 _TABLE_RAW: dict[str, ModelCapabilities] = {
-    "MiMo-V2.5-Pro": ModelCapabilities(reasoning=True, tools=True),
-    "MiMo-V2.5": ModelCapabilities(reasoning=True, tools=True),
-    "MiMo-V2-Pro": ModelCapabilities(reasoning=True, tools=True),
-    "MiMo-V2-Omni": ModelCapabilities(reasoning=True, vision=True, audio_out=True, tools=True),
-    "MiMo-V2.5-TTS-VoiceClone": ModelCapabilities(audio_out=True),
-    "MiMo-V2.5-TTS-VoiceDesign": ModelCapabilities(audio_out=True),
-    "MiMo-V2.5-TTS": ModelCapabilities(audio_out=True),
-    "MiMo-V2-TTS": ModelCapabilities(audio_out=True),
+    "MiMo-V2.5-Pro": ModelCapabilities(reasoning=True, tools=True, context_window=128_000),
+    "MiMo-V2.5": ModelCapabilities(reasoning=True, tools=True, context_window=128_000),
+    "MiMo-V2-Pro": ModelCapabilities(reasoning=True, tools=True, context_window=128_000),
+    "MiMo-V2-Omni": ModelCapabilities(reasoning=True, vision=True, audio_out=True, tools=True, context_window=128_000),
+    "MiMo-V2.5-TTS-VoiceClone": ModelCapabilities(audio_out=True, context_window=8_192),
+    "MiMo-V2.5-TTS-VoiceDesign": ModelCapabilities(audio_out=True, context_window=8_192),
+    "MiMo-V2.5-TTS": ModelCapabilities(audio_out=True, context_window=8_192),
+    "MiMo-V2-TTS": ModelCapabilities(audio_out=True, context_window=8_192),
 }
 
 _TABLE: dict[str, ModelCapabilities] = {k.lower(): v for k, v in _TABLE_RAW.items()}
 
 _HEURISTIC_PREFIXES_RAW: list[tuple[str, ModelCapabilities]] = [
-    ("MiMo-V2.5-TTS", ModelCapabilities(audio_out=True)),
-    ("MiMo-V2-TTS", ModelCapabilities(audio_out=True)),
-    ("MiMo-V2-Omni", ModelCapabilities(reasoning=True, vision=True, audio_out=True, tools=True)),
-    ("MiMo-V2.5", ModelCapabilities(reasoning=True, tools=True)),
-    ("MiMo-V2", ModelCapabilities(reasoning=True, tools=True)),
-    ("MiMo-7B", ModelCapabilities(reasoning=True, tools=True)),
+    ("MiMo-V2.5-TTS", ModelCapabilities(audio_out=True, context_window=8_192)),
+    ("MiMo-V2-TTS", ModelCapabilities(audio_out=True, context_window=8_192)),
+    ("MiMo-V2-Omni", ModelCapabilities(reasoning=True, vision=True, audio_out=True, tools=True, context_window=128_000)),
+    ("MiMo-V2.5", ModelCapabilities(reasoning=True, tools=True, context_window=128_000)),
+    ("MiMo-V2", ModelCapabilities(reasoning=True, tools=True, context_window=128_000)),
+    ("MiMo-7B", ModelCapabilities(reasoning=True, tools=True, context_window=32_768)),
 ]
 
 _HEURISTIC_PREFIXES: list[tuple[str, ModelCapabilities]] = [

@@ -134,15 +134,19 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         await self._new_session()
         await self._refresh_sessions_list()
 
+        caps = get_capabilities(self._cfg.model.name)
         sb = self.query_one(StatusBar)
         sb.update_all(
             model=self._cfg.model.name,
             mode=self._cfg.mode,
             endpoint=self._cfg.endpoint.url,
             lang=self._cfg.language,
+            context_window=caps.context_window,
         )
 
-        self.query_one(HeaderBar).update_model(self._cfg.model.name)
+        header = self.query_one(HeaderBar)
+        header.update_model(self._cfg.model.name)
+        header.update_context(used=0, window=caps.context_window)
         self.query_one(Composer).focus_input()
 
         chat = self.query_one(ChatLog)
@@ -196,7 +200,10 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self.query_one(ChatLog).clear()
         self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
-        self.query_one(HeaderBar).update_title("Untitled")
+        header = self.query_one(HeaderBar)
+        header.update_title("Untitled")
+        header.update_context(used=0)
+        self.query_one(StatusBar).update_all(reset_tokens=True)
         await self._refresh_sessions_list()
 
     async def on_sessions_list_session_selected(self, event: SessionsList.SessionSelected) -> None:
@@ -324,6 +331,9 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         completion_tokens=event.completion_tokens,
                         latency_ms=event.latency_ms,
                     )
+                    self.query_one(HeaderBar).update_context(
+                        used=event.prompt_tokens + event.completion_tokens
+                    )
 
                 elif isinstance(event, ErrorEvent):
                     if reasoning_started:
@@ -410,8 +420,10 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             mode=AgentMode(self._cfg.mode),
             approval_cb=self._approval_callback,
         )
-        self.query_one(StatusBar).update_all(model=model)
-        self.query_one(HeaderBar).update_model(model)
+        self.query_one(StatusBar).update_all(model=model, context_window=caps.context_window)
+        header = self.query_one(HeaderBar)
+        header.update_model(model)
+        header.update_context(window=caps.context_window)
         self.query_one(ChatLog).write_system_message(t("commands.model_set", model=model))
 
     def action_toggle_reasoning(self) -> None:
@@ -445,7 +457,10 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self.query_one(ChatLog).clear()
         self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
-        self.query_one(HeaderBar).update_title("Untitled")
+        header = self.query_one(HeaderBar)
+        header.update_title("Untitled")
+        header.update_context(used=0)
+        self.query_one(StatusBar).update_all(reset_tokens=True)
         await self._refresh_sessions_list()
         sidebar = self.query_one(RightSidebar)
         sidebar.tasks_section.clear_items()
@@ -498,7 +513,12 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             chat.clear()
             if self._loop:
                 self._loop.reset()
+            self.query_one(StatusBar).update_all(reset_tokens=True)
+            self.query_one(HeaderBar).update_context(used=0)
             chat.write_system_message(t("commands.cleared"))
+
+        elif cmd == "compact":
+            await self._compact_conversation(" ".join(args))
 
         elif cmd == "protocol":
             if args and args[0] in ("openai", "anthropic"):
@@ -580,6 +600,44 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
         else:
             chat.write_system_message(t("commands.unknown", cmd=cmd))
+
+    async def _compact_conversation(self, focus: str) -> None:
+        chat = self.query_one(ChatLog)
+        if self._streaming:
+            chat.write_system_message(t("commands.compact_busy"))
+            return
+        if self._loop is None or self._loop.history_size() == 0:
+            chat.write_system_message(t("commands.compact_empty"))
+            return
+
+        chat.write_system_message(t("commands.compact_running"))
+        self._set_streaming(True)
+        try:
+            summary = await self._loop.compact(focus.strip())
+        except Exception as e:
+            chat.write_system_message(t("commands.compact_failed", error=str(e)))
+            return
+        finally:
+            self._set_streaming(False)
+
+        chat.clear()
+        chat.write_system_message(t("commands.compact_done"))
+        chat.write_system_message(summary, style="dim #c0caf5")
+
+        if self._store and self._session_id:
+            await self._store.delete_messages(self._session_id)
+            await self._store.add_message(
+                self._session_id, "user", f"[Compacted summary]\n{summary}"
+            )
+            await self._store.add_message(
+                self._session_id,
+                "assistant",
+                "Got it — I have the recap and will continue from here.",
+            )
+
+        self.query_one(StatusBar).update_all(reset_tokens=True)
+        self.query_one(HeaderBar).update_context(used=0)
+        self.query_one(Composer).focus_input()
 
     async def _attach_file(self, path: str) -> None:
         chat = self.query_one(ChatLog)

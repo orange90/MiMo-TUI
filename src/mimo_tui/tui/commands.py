@@ -18,6 +18,7 @@ COMMANDS: list[Command] = [
     Command("lang", "Switch language: /lang <en|zh_CN>", "cmd_lang"),
     Command("theme", "Switch theme: /theme <name>", "cmd_theme"),
     Command("clear", "Clear conversation", "cmd_clear"),
+    Command("compact", "Compact conversation to a summary: /compact [focus]", "cmd_compact"),
     Command("attach", "Attach a file: /attach <path>", "cmd_attach"),
     Command("search", "Search sessions: /search <query>", "cmd_search"),
     Command("tools", "List available tools", "cmd_tools"),

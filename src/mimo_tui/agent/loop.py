@@ -127,6 +127,61 @@ class AgentLoop:
     def load_history(self, messages: list[Message]) -> None:
         self._history = list(messages)
 
+    def history_size(self) -> int:
+        return len(self._history)
+
+    async def compact(self, focus: str = "") -> str:
+        """Summarize current history via the model, then replace history with the recap.
+
+        Returns the summary text. Raises if there is nothing to compact or the
+        model fails to respond.
+        """
+        if not self._history:
+            return ""
+
+        focus_line = (
+            f"Focus areas requested by the user: {focus}\n" if focus else ""
+        )
+        instruction = (
+            "Produce a concise structured recap of the conversation above so "
+            "we can continue in a fresh context window. Cover: (1) user goal "
+            "and key decisions, (2) facts discovered or established, (3) work "
+            "completed, (4) work still pending or open questions. Be specific "
+            "with file paths, identifiers, numbers, and API names — do not "
+            "invent details. Keep under ~400 words.\n" + focus_line
+        )
+
+        req = ChatRequest(
+            model=self._cfg.model.name,
+            messages=(
+                [Message(role="system", content="You summarize conversations.")]
+                + self._history
+                + [Message(role="user", content=instruction)]
+            ),
+            tools=None,
+            max_tokens=min(2048, self._cfg.model.max_tokens),
+            temperature=0.3,
+        )
+
+        summary = ""
+        async for delta in self._client.stream(req):
+            if isinstance(delta, ContentDelta):
+                summary += delta.text
+
+        summary = summary.strip()
+        if not summary:
+            raise RuntimeError("compact: empty summary from model")
+
+        recap_header = "[Compacted conversation summary]\n"
+        self._history = [
+            Message(role="user", content=recap_header + summary),
+            Message(
+                role="assistant",
+                content="Got it — I have the recap and will continue from here.",
+            ),
+        ]
+        return summary
+
     async def run(self, user_text: str) -> AsyncGenerator[AgentEvent, None]:
         self._history.append(Message(role="user", content=user_text))
         system = get_system_prompt(self._mode.value)

@@ -39,6 +39,8 @@ class HeaderBar(Horizontal):
         self._model = model
         self._mode = mode
         self._title = title
+        self._ctx_used = 0
+        self._ctx_window = 0
 
     def compose(self) -> ComposeResult:
         yield Static(self._build_left(), id="hb-left")
@@ -53,7 +55,16 @@ class HeaderBar(Horizontal):
         return f"[dim]◆[/]  {self._title}"
 
     def _build_right(self) -> str:
-        return f"[dim]{self._mode}[/]"
+        parts = [f"[dim]{self._mode}[/]"]
+        if self._ctx_used > 0 and self._ctx_window > 0:
+            pct = min(100, int((self._ctx_used / self._ctx_window) * 100))
+            color = "#9ece6a" if pct < 60 else "#e0af68" if pct < 85 else "#f7768e"
+            parts.append(
+                f"[{color}]ctx {pct}%[/] [dim]{_fmt_tok(self._ctx_used)}/{_fmt_tok(self._ctx_window)}[/]"
+            )
+        elif self._ctx_window > 0:
+            parts.append(f"[dim]ctx 0% 0/{_fmt_tok(self._ctx_window)}[/]")
+        return "  [dim]·[/]  ".join(parts)
 
     def update_model(self, model: str) -> None:
         self._model = model
@@ -67,8 +78,23 @@ class HeaderBar(Horizontal):
         self._title = title
         self.query_one("#hb-center", Static).update(self._build_center())
 
+    def update_context(self, used: int = -1, window: int = -1) -> None:
+        if used >= 0:
+            self._ctx_used = used
+        if window >= 0:
+            self._ctx_window = window
+        try:
+            self.query_one("#hb-right", Static).update(self._build_right())
+        except Exception:
+            pass
+
     def update_right(self, text: str = "") -> None:
         self.query_one("#hb-right", Static).update(text)
 
-    def _update_right(self) -> None:
-        self.query_one("#hb-right", Static).update(self._build_right())
+
+def _fmt_tok(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}k"
+    return str(n)
