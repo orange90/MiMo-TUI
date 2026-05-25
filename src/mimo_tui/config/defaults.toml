@@ -29,7 +29,6 @@ shell_timeout_s = 60
 write_paths = ["."]
 
 [ui]
-reasoning_pane = "visible"
 image_protocol = "auto"
 
 [audio]

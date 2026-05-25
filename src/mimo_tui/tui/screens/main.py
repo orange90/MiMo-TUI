@@ -43,7 +43,6 @@ from mimo_tui.tui.theme import THEMES, get_theme_css
 from mimo_tui.tui.widgets.chat_log import ChatLog
 from mimo_tui.tui.widgets.composer import Composer
 from mimo_tui.tui.widgets.header_bar import HeaderBar
-from mimo_tui.tui.widgets.reasoning_pane import ReasoningPane
 from mimo_tui.tui.widgets.sessions_list import SessionsList
 from mimo_tui.tui.widgets.sidebar_panel import RightSidebar
 from mimo_tui.tui.widgets.status_bar import StatusBar
@@ -52,7 +51,6 @@ from mimo_tui.tui.widgets.status_bar import StatusBar
 class MainScreen(Screen):  # type: ignore[type-arg]
     BINDINGS = [
         Binding("ctrl+m", "open_model_picker", "Model"),
-        Binding("ctrl+r", "toggle_reasoning", "Reasoning"),
         Binding("ctrl+l", "toggle_lang", "Lang"),
         Binding("ctrl+t", "toggle_theme", "Theme"),
         Binding("ctrl+n", "new_session", "New"),
@@ -101,12 +99,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             with Vertical(id="center-pane"):
                 yield ChatLog()
                 yield Composer(placeholder=t("chat.placeholder"))
-            rp_hidden = self._cfg.ui.reasoning_pane == "hidden"
-            rp_collapsed = self._cfg.ui.reasoning_pane == "collapsed"
-            rp = ReasoningPane(collapsed=rp_collapsed)
-            if rp_hidden:
-                rp.display = False
-            yield rp
             yield RightSidebar()
         yield StatusBar()
 
@@ -198,7 +190,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
     async def on_sessions_list_new_session_requested(self, _: SessionsList.NewSessionRequested) -> None:
         await self._new_session()
         self.query_one(ChatLog).clear()
-        self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
         header = self.query_one(HeaderBar)
         header.update_title("Untitled")
@@ -257,7 +248,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
         self._set_streaming(True)
         chat.begin_assistant_message()
-        self.query_one(ReasoningPane).begin_turn()
         self._reasoning_start = time.monotonic()
 
         # Update tasks in sidebar
@@ -274,7 +264,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
     async def _run_stream(self, text: str) -> None:
         chat = self.query_one(ChatLog)
-        rp = self.query_one(ReasoningPane)
         sb = self.query_one(StatusBar)
         sidebar = self.query_one(RightSidebar)
         content_buf = ""
@@ -298,7 +287,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         reasoning_started = True
                     reasoning_buf += event.text
                     chat.append_thinking(event.text)
-                    rp.append_reasoning(event.text)
 
                 elif isinstance(event, AudioEvent):
                     self._audio_buf += event.data
@@ -426,9 +414,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         header.update_context(window=caps.context_window)
         self.query_one(ChatLog).write_system_message(t("commands.model_set", model=model))
 
-    def action_toggle_reasoning(self) -> None:
-        self.query_one(ReasoningPane).toggle_collapse()
-
     def action_toggle_sessions(self) -> None:
         self.query_one(SessionsList).toggle_collapse()
 
@@ -455,7 +440,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
     async def action_new_session(self) -> None:
         await self._new_session()
         self.query_one(ChatLog).clear()
-        self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
         header = self.query_one(HeaderBar)
         header.update_title("Untitled")

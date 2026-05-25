@@ -26,6 +26,7 @@ class ChatLog(RichLog):
         self._current_buf: str = ""
         self._streaming = False
         self._reasoning_buf: str = ""
+        self._reasoning_line_buf: str = ""
         self._reasoning_active = False
 
     def begin_user_message(self, text: str) -> None:
@@ -44,27 +45,38 @@ class ChatLog(RichLog):
         self._streaming = True
 
     def begin_thinking(self) -> None:
-        """Start a thinking/reasoning block inline in chat."""
+        """Start a thinking/reasoning block inline in chat — streams live."""
         self._reasoning_buf = ""
+        self._reasoning_line_buf = ""
         self._reasoning_active = True
+        self.write(Text.from_markup("[dim #e0af68]o thinking[/]"), shrink=False)
 
     def append_thinking(self, text: str, elapsed: float = 0.0) -> None:
-        """Append text to the inline thinking block."""
+        """Append text to the inline thinking block, streaming line-by-line."""
+        if not self._reasoning_active:
+            return
         self._reasoning_buf += text
+        self._reasoning_line_buf += text
+        while "\n" in self._reasoning_line_buf:
+            line, self._reasoning_line_buf = self._reasoning_line_buf.split("\n", 1)
+            line = line.strip()
+            if line:
+                self.write(Text(f"  | {line}", style="dim #565f89"), shrink=False)
 
     def end_thinking(self, elapsed: float = 0.0) -> None:
-        """Finish the thinking block and render it."""
-        if self._reasoning_buf:
-            elapsed_str = f"{elapsed:.1f}s" if elapsed else ""
-            header = f"[dim #e0af68]o thinking[/] [dim]done · {elapsed_str}[/]" if elapsed_str else "[dim #e0af68]o thinking[/]"
-            self.write(Text.from_markup(header), shrink=False)
-            lines = self._reasoning_buf.strip().split("\n")
-            for line in lines[:6]:
-                self.write(Text(f"  | {line.strip()}", style="dim #565f89"), shrink=False)
-            if len(lines) > 6:
-                self.write(Text(f"  | ... ({len(lines) - 6} more lines)", style="dim #565f89"), shrink=False)
+        """Finish the streaming thinking block."""
+        if self._reasoning_active:
+            tail = self._reasoning_line_buf.strip()
+            if tail:
+                self.write(Text(f"  | {tail}", style="dim #565f89"), shrink=False)
+            if elapsed:
+                self.write(
+                    Text.from_markup(f"[dim]thinking done · {elapsed:.1f}s[/]"),
+                    shrink=False,
+                )
         self._reasoning_active = False
         self._reasoning_buf = ""
+        self._reasoning_line_buf = ""
 
     def append_assistant_chunk(self, text: str) -> None:
         self._current_buf += text

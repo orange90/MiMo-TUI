@@ -200,7 +200,6 @@ shell_timeout_s = 60
 write_paths = ["."]
 
 [ui]
-reasoning_pane = "visible"          # visible | collapsed | hidden
 image_protocol = "auto"             # auto | kitty | iterm2 | sixel | ascii
 
 [audio]
@@ -469,7 +468,6 @@ shell_timeout_s = 60
 write_paths = ["."]
 
 [ui]
-reasoning_pane = "visible"          # visible | collapsed | hidden
 image_protocol = "auto"             # auto | kitty | iterm2 | sixel | ascii
 
 [audio]
