@@ -138,14 +138,17 @@ class AgentLoop:
     def history_size(self) -> int:
         return len(self._history)
 
-    async def compact(self, focus: str = "") -> str:
+    async def compact(self, focus: str = "") -> tuple[str, int]:
         """Summarize current history via the model, then replace history with the recap.
 
-        Returns the summary text. Raises if there is nothing to compact or the
-        model fails to respond.
+        Returns ``(summary_text, estimated_new_context_tokens)``. The estimate is
+        the model-reported completion-token count of the summary plus a small
+        constant for the assistant ack — i.e. roughly the prompt size the next
+        turn will send. Falls back to a char-based heuristic if the provider
+        omits usage.
         """
         if not self._history:
-            return ""
+            return "", 0
 
         focus_line = (
             f"Focus areas requested by the user: {focus}\n" if focus else ""
@@ -172,23 +175,30 @@ class AgentLoop:
         )
 
         summary = ""
+        summary_tokens = 0
         async for delta in self._client.stream(req):
             if isinstance(delta, ContentDelta):
                 summary += delta.text
+            elif isinstance(delta, UsageDelta):
+                summary_tokens = delta.completion_tokens
 
         summary = summary.strip()
         if not summary:
             raise RuntimeError("compact: empty summary from model")
 
         recap_header = "[Compacted conversation summary]\n"
+        ack = "Got it — I have the recap and will continue from here."
         self._history = [
             Message(role="user", content=recap_header + summary),
-            Message(
-                role="assistant",
-                content="Got it — I have the recap and will continue from here.",
-            ),
+            Message(role="assistant", content=ack),
         ]
-        return summary
+
+        if summary_tokens <= 0:
+            # Heuristic: ~3.5 chars per token across mixed en/zh content.
+            summary_tokens = max(1, int(len(summary) / 3.5))
+        # +recap header (~6) + assistant ack (~12) + per-message overhead.
+        estimated = summary_tokens + 24
+        return summary, estimated
 
     async def run(self, user_text: str) -> AsyncGenerator[AgentEvent, None]:
         self._history.append(Message(role="user", content=user_text))

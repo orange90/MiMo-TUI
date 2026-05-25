@@ -63,7 +63,7 @@ commands:
   theme_set: "主题已切换至 {theme}"
   cleared: "对话已清空"
   compact_running: "正在压缩对话上下文…"
-  compact_done: "对话已压缩，下方为摘要，将基于此继续。"
+  compact_done: "对话已压缩（保留约 {tokens} tokens），下方为摘要，将基于此继续。"
   compact_empty: "无可压缩内容 —— 对话为空。"
   compact_busy: "响应流式输出中，无法压缩。"
   compact_failed: "压缩失败：{error}"
