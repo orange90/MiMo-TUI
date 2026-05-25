@@ -63,7 +63,7 @@ commands:
   theme_set: "Theme set to {theme}"
   cleared: "Conversation cleared"
   compact_running: "Compacting conversation…"
-  compact_done: "Conversation compacted. Continuing with the summary below."
+  compact_done: "Conversation compacted (~{tokens} tokens retained). Continuing with the summary below."
   compact_empty: "Nothing to compact — conversation is empty."
   compact_busy: "Cannot compact while a response is streaming."
   compact_failed: "Compact failed: {error}"

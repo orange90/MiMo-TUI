@@ -613,7 +613,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         chat.write_system_message(t("commands.compact_running"))
         self._set_streaming(True)
         try:
-            summary = await self._loop.compact(focus.strip())
+            summary, est_tokens = await self._loop.compact(focus.strip())
         except Exception as e:
             chat.write_system_message(t("commands.compact_failed", error=str(e)))
             return
@@ -621,7 +621,9 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             self._set_streaming(False)
 
         chat.clear()
-        chat.write_system_message(t("commands.compact_done"))
+        chat.write_system_message(
+            t("commands.compact_done", tokens=est_tokens)
+        )
         chat.write_system_message(summary, style="dim #c0caf5")
 
         if self._store and self._session_id:
@@ -635,8 +637,12 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                 "Got it — I have the recap and will continue from here.",
             )
 
-        self.query_one(StatusBar).update_all(reset_tokens=True)
-        self.query_one(HeaderBar).update_context(used=0)
+        # Reflect the post-compact baseline: history is non-empty (the
+        # summary), so show its estimated size rather than zero.
+        self.query_one(StatusBar).update_all(
+            reset_tokens=True, prompt_tokens=est_tokens
+        )
+        self.query_one(HeaderBar).update_context(used=est_tokens)
         self.query_one(Composer).focus_input()
 
     async def _attach_file(self, path: str) -> None:
