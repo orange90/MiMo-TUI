@@ -65,3 +65,45 @@ class ApprovalModal(ModalScreen[bool]):
                 self.dismiss(True)
             elif event.key in ("n", "escape"):
                 self.dismiss(False)
+
+
+class PlanApprovalModal(ModalScreen[bool]):
+    DEFAULT_CSS = """
+    PlanApprovalModal {
+        align: center middle;
+    }
+    PlanApprovalModal > * {
+        width: 70;
+        height: auto;
+        min-height: 10;
+        background: $surface;
+        border: solid $border;
+        padding: 2 4;
+    }
+    PlanApprovalModal #pa-title { text-style: bold; color: $accent; }
+    PlanApprovalModal #pa-hint { color: $text-muted; margin-top: 1; }
+    PlanApprovalModal #pa-actions { layout: horizontal; height: 3; margin-top: 2; }
+    PlanApprovalModal #pa-actions Button { margin-right: 1; }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Static():
+            yield Label(t("plan_approval.title"), id="pa-title")
+            yield Label(t("plan_approval.hint"), id="pa-hint")
+            with Static(id="pa-actions"):
+                yield Button(t("plan_approval.approve"), id="pa-approve", variant="success")
+                yield Button(t("plan_approval.keep_planning"), id="pa-keep", variant="primary")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "pa-approve":
+            self.dismiss(True)
+        elif event.button.id == "pa-keep":
+            self.dismiss(False)
+
+    def on_key(self, event: object) -> None:
+        from textual.events import Key
+        if isinstance(event, Key):
+            if event.key == "y":
+                self.dismiss(True)
+            elif event.key in ("n", "escape"):
+                self.dismiss(False)

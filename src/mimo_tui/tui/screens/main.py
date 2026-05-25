@@ -175,6 +175,20 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         from mimo_tui.tui.screens.approval import ApprovalModal
         return await self.app.push_screen_wait(ApprovalModal(req))  # type: ignore[return-value]
 
+    async def _prompt_plan_approval(self) -> None:
+        from mimo_tui.tui.screens.approval import PlanApprovalModal
+        approved = await self.app.push_screen_wait(PlanApprovalModal())  # type: ignore[assignment]
+        chat = self.query_one(ChatLog)
+        if approved:
+            self._cfg.mode = "agent"
+            save_config(self._cfg)
+            if self._loop is not None:
+                self._loop._mode = AgentMode.AGENT
+            self.query_one(StatusBar).update_all(mode="agent")
+            chat.write_system_message(t("plan_approval.approved_msg"))
+        else:
+            chat.write_system_message(t("plan_approval.denied_msg"))
+
     # -- Message handlers --
 
     async def on_composer_message_submitted(self, event: Composer.MessageSubmitted) -> None:
@@ -356,6 +370,8 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         )
                     task_label = f"turn {self._session_id[:8] if self._session_id else ''}... (completed)"
                     sidebar.tasks_section.set_items([task_label])
+                    if self._cfg.mode == "plan" and content_buf.strip():
+                        await self._prompt_plan_approval()
 
         except asyncio.CancelledError:
             if reasoning_started:
