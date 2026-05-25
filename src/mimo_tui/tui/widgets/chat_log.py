@@ -26,6 +26,7 @@ class ChatLog(RichLog):
         self._current_buf: str = ""
         self._streaming = False
         self._reasoning_buf: str = ""
+        self._reasoning_line_buf: str = ""
         self._reasoning_active = False
 
     def begin_user_message(self, text: str) -> None:
@@ -44,27 +45,38 @@ class ChatLog(RichLog):
         self._streaming = True
 
     def begin_thinking(self) -> None:
-        """Start a thinking/reasoning block inline in chat."""
+        """Start a thinking/reasoning block inline in chat — streams live."""
         self._reasoning_buf = ""
+        self._reasoning_line_buf = ""
         self._reasoning_active = True
+        self.write(Text.from_markup("[dim #e0af68]o thinking[/]"), shrink=False)
 
     def append_thinking(self, text: str, elapsed: float = 0.0) -> None:
-        """Append text to the inline thinking block."""
+        """Append text to the inline thinking block, streaming line-by-line."""
+        if not self._reasoning_active:
+            return
         self._reasoning_buf += text
+        self._reasoning_line_buf += text
+        while "\n" in self._reasoning_line_buf:
+            line, self._reasoning_line_buf = self._reasoning_line_buf.split("\n", 1)
+            line = line.strip()
+            if line:
+                self.write(Text(f"  | {line}", style="dim #565f89"), shrink=False)
 
     def end_thinking(self, elapsed: float = 0.0) -> None:
-        """Finish the thinking block and render it."""
-        if self._reasoning_buf:
-            elapsed_str = f"{elapsed:.1f}s" if elapsed else ""
-            header = f"[dim #e0af68]o thinking[/] [dim]done · {elapsed_str}[/]" if elapsed_str else "[dim #e0af68]o thinking[/]"
-            self.write(Text.from_markup(header), shrink=False)
-            lines = self._reasoning_buf.strip().split("\n")
-            for line in lines[:6]:
-                self.write(Text(f"  | {line.strip()}", style="dim #565f89"), shrink=False)
-            if len(lines) > 6:
-                self.write(Text(f"  | ... ({len(lines) - 6} more lines)", style="dim #565f89"), shrink=False)
+        """Finish the streaming thinking block."""
+        if self._reasoning_active:
+            tail = self._reasoning_line_buf.strip()
+            if tail:
+                self.write(Text(f"  | {tail}", style="dim #565f89"), shrink=False)
+            if elapsed:
+                self.write(
+                    Text.from_markup(f"[dim]thinking done · {elapsed:.1f}s[/]"),
+                    shrink=False,
+                )
         self._reasoning_active = False
         self._reasoning_buf = ""
+        self._reasoning_line_buf = ""
 
     def append_assistant_chunk(self, text: str) -> None:
         self._current_buf += text
@@ -91,6 +103,50 @@ class ChatLog(RichLog):
             self.write(Text(f"    {args_preview[:120]}", style="dim #565f89"), shrink=False)
         if result:
             preview = result[:300] + ("..." if len(result) > 300 else "")
+            result_style = "dim #9ece6a" if approved else "dim #f7768e"
+            self.write(Text(f"    -> {preview}", style=result_style), shrink=False)
+
+    def write_tool_start(self, tool_name: str) -> None:
+        """Show that a tool call has started — emitted as soon as the model picks the tool."""
+        self._flush_current()
+        self.write(
+            Text.from_markup(
+                f"  [bold #7aa2f7]>[/] [bold #e0af68]{tool_name}[/] [dim #565f89]preparing\u2026[/]"
+            ),
+            shrink=False,
+        )
+
+    def write_tool_progress(self, label: str, value: str = "") -> None:
+        """Show an inline progress note under a running tool call."""
+        if value:
+            line = f"    [dim #7aa2f7]{label}[/] [dim #c0caf5]{value}[/]"
+        else:
+            line = f"    [dim #7aa2f7]{label}[/]"
+        self.write(Text.from_markup(line), shrink=False)
+
+    def write_tool_executing(self, tool_name: str, summary: str = "") -> None:
+        """Show that the tool is actually running now (after approval / arg parse)."""
+        msg = f"    [dim #e0af68]\u00b7 executing {tool_name}\u2026[/]"
+        if summary:
+            msg += f" [dim #565f89]{summary}[/]"
+        self.write(Text.from_markup(msg), shrink=False)
+        self.write(
+            Text.from_markup(
+                "    [dim #7aa2f7]\u22ef working in progress\u2026 (see status bar for live indicator)[/]"
+            ),
+            shrink=False,
+        )
+
+    def write_tool_done(self, tool_name: str, result: str, approved: bool, elapsed_ms: float = 0.0) -> None:
+        """Finalize a streaming tool call — print outcome and optional duration."""
+        status = "[bold #9ece6a]v done[/]" if approved else "[bold #f7768e]x failed[/]"
+        timing = f" [dim]\u00b7 {elapsed_ms:.0f}ms[/]" if elapsed_ms else ""
+        self.write(
+            Text.from_markup(f"    {status} [dim #e0af68]{tool_name}[/]{timing}"),
+            shrink=False,
+        )
+        if result:
+            preview = result[:300] + ("\u2026" if len(result) > 300 else "")
             result_style = "dim #9ece6a" if approved else "dim #f7768e"
             self.write(Text(f"    -> {preview}", style=result_style), shrink=False)
 

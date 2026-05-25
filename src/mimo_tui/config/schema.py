@@ -38,7 +38,6 @@ class SandboxConfig(BaseModel):
 
 
 class UIConfig(BaseModel):
-    reasoning_pane: Literal["visible", "collapsed", "hidden"] = "visible"
     image_protocol: Literal["auto", "kitty", "iterm2", "sixel", "ascii"] = "auto"
 
 

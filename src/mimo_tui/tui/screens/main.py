@@ -22,6 +22,8 @@ from mimo_tui.agent.loop import (
     ErrorEvent,
     ReasoningEvent,
     TextEvent,
+    ToolCallArgFragEvent,
+    ToolCallExecutingEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
     UsageEvent,
@@ -39,11 +41,12 @@ from mimo_tui.mcp.manager import MCPManager
 from mimo_tui.providers.capabilities import get_capabilities
 from mimo_tui.sessions.store import SessionStore
 from mimo_tui.tui.commands import parse_command
+from mimo_tui.tui.screens.approval import ApprovalPanel
 from mimo_tui.tui.theme import THEMES, get_theme_css
+from mimo_tui.tui.widgets.activity_bar import ActivityBar
 from mimo_tui.tui.widgets.chat_log import ChatLog
 from mimo_tui.tui.widgets.composer import Composer
 from mimo_tui.tui.widgets.header_bar import HeaderBar
-from mimo_tui.tui.widgets.reasoning_pane import ReasoningPane
 from mimo_tui.tui.widgets.sessions_list import SessionsList
 from mimo_tui.tui.widgets.sidebar_panel import RightSidebar
 from mimo_tui.tui.widgets.status_bar import StatusBar
@@ -52,7 +55,6 @@ from mimo_tui.tui.widgets.status_bar import StatusBar
 class MainScreen(Screen):  # type: ignore[type-arg]
     BINDINGS = [
         Binding("ctrl+m", "open_model_picker", "Model"),
-        Binding("ctrl+r", "toggle_reasoning", "Reasoning"),
         Binding("ctrl+l", "toggle_lang", "Lang"),
         Binding("ctrl+t", "toggle_theme", "Theme"),
         Binding("ctrl+n", "new_session", "New"),
@@ -90,9 +92,13 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._streaming = False
         self._pending_tool_name: str | None = None
         self._mcp = MCPManager()
-        self._stream_task: asyncio.Task[None] | None = None
+        self._stream_worker: Any = None
         self._reasoning_start: float = 0.0
         self._task_counter = 0
+        self._tool_anchors: dict[int, int] = {}
+        self._tool_arg_buffers: dict[int, str] = {}
+        self._tool_names: dict[int, str] = {}
+        self._tool_started_at: dict[int, float] = {}
 
     def compose(self) -> ComposeResult:
         yield HeaderBar(model=self._cfg.model.name, mode=self._cfg.mode, title="Untitled")
@@ -100,13 +106,9 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             yield SessionsList()
             with Vertical(id="center-pane"):
                 yield ChatLog()
+                yield ApprovalPanel()
+                yield ActivityBar()
                 yield Composer(placeholder=t("chat.placeholder"))
-            rp_hidden = self._cfg.ui.reasoning_pane == "hidden"
-            rp_collapsed = self._cfg.ui.reasoning_pane == "collapsed"
-            rp = ReasoningPane(collapsed=rp_collapsed)
-            if rp_hidden:
-                rp.display = False
-            yield rp
             yield RightSidebar()
         yield StatusBar()
 
@@ -172,8 +174,11 @@ class MainScreen(Screen):  # type: ignore[type-arg]
     # -- Approval callback --
 
     async def _approval_callback(self, req: ApprovalRequest) -> bool:
-        from mimo_tui.tui.screens.approval import ApprovalModal
-        return await self.app.push_screen_wait(ApprovalModal(req))  # type: ignore[return-value]
+        try:
+            panel = self.query_one(ApprovalPanel)
+        except NoMatches:
+            return False
+        return await panel.request(req)
 
     async def _prompt_plan_approval(self) -> None:
         from mimo_tui.tui.screens.approval import PlanApprovalModal
@@ -204,15 +209,17 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         await self._send_message(text)
 
     async def on_composer_stop_requested(self, _: Composer.StopRequested) -> None:
-        if self._stream_task and not self._stream_task.done():
-            self._stream_task.cancel()
+        if self._stream_worker is not None:
+            try:
+                self._stream_worker.cancel()
+            except Exception:
+                pass
         self._set_streaming(False)
         self.query_one(ChatLog).write_system_message("Stopped.", style="dim #f7768e")
 
     async def on_sessions_list_new_session_requested(self, _: SessionsList.NewSessionRequested) -> None:
         await self._new_session()
         self.query_one(ChatLog).clear()
-        self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
         header = self.query_one(HeaderBar)
         header.update_title("Untitled")
@@ -271,7 +278,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
         self._set_streaming(True)
         chat.begin_assistant_message()
-        self.query_one(ReasoningPane).begin_turn()
         self._reasoning_start = time.monotonic()
 
         # Update tasks in sidebar
@@ -284,16 +290,66 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._audio_mime = "audio/wav"
 
         assert self._loop is not None
-        self._stream_task = asyncio.create_task(self._run_stream(text))
+        self._stream_worker = self.run_worker(
+            self._run_stream(text),
+            name="agent-stream",
+            exclusive=True,
+            group="stream",
+        )
+
+    def _extract_arg_hint(self, partial_args: str) -> tuple[str, str] | None:
+        """Best-effort extraction of a key→value pair from partial JSON args for live UI hints.
+
+        Tries to parse `partial_args` as JSON, then picks a friendly key in
+        priority order (path > file_path > command > pattern > url > query > content).
+        For very long values (e.g. full file content) returns just a length summary.
+        Returns (label, value) or None if no useful key is yet present.
+        """
+        priority = [
+            ("path", "path"),
+            ("file_path", "path"),
+            ("command", "$"),
+            ("pattern", "pattern"),
+            ("url", "url"),
+            ("query", "query"),
+        ]
+        try:
+            parsed = json.loads(partial_args or "{}")
+        except json.JSONDecodeError:
+            for key, label in priority:
+                marker = f'"{key}"'
+                pos = partial_args.find(marker)
+                if pos < 0:
+                    continue
+                rest = partial_args[pos + len(marker):]
+                colon = rest.find(":")
+                if colon < 0:
+                    continue
+                rest = rest[colon + 1:].lstrip()
+                if rest.startswith('"'):
+                    end = rest.find('"', 1)
+                    value = rest[1:end] if end > 0 else rest[1:]
+                    if value:
+                        return label, value[:80]
+            return None
+
+        if not isinstance(parsed, dict):
+            return None
+        for key, label in priority:
+            if key in parsed and isinstance(parsed[key], str) and parsed[key]:
+                return label, parsed[key][:80]
+        if "content" in parsed and isinstance(parsed["content"], str):
+            return "content", f"{len(parsed['content'])} chars"
+        return None
 
     async def _run_stream(self, text: str) -> None:
         chat = self.query_one(ChatLog)
-        rp = self.query_one(ReasoningPane)
         sb = self.query_one(StatusBar)
         sidebar = self.query_one(RightSidebar)
         content_buf = ""
         reasoning_buf = ""
         reasoning_started = False
+        self._set_activity("calling model")
 
         try:
             assert self._loop is not None
@@ -305,6 +361,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         reasoning_started = False
                     content_buf += event.text
                     chat.append_assistant_chunk(event.text)
+                    self._set_activity("writing reply")
 
                 elif isinstance(event, ReasoningEvent):
                     if not reasoning_started:
@@ -312,7 +369,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         reasoning_started = True
                     reasoning_buf += event.text
                     chat.append_thinking(event.text)
-                    rp.append_reasoning(event.text)
+                    self._set_activity("thinking")
 
                 elif isinstance(event, AudioEvent):
                     self._audio_buf += event.data
@@ -328,16 +385,60 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     self._pending_tool_name = event.tool_name
                     chat.flush_assistant_stream()
                     content_buf = ""
+                    self._tool_names[event.index] = event.tool_name
+                    self._tool_arg_buffers[event.index] = ""
+                    self._tool_started_at[event.index] = time.monotonic()
+                    chat.write_tool_start(event.tool_name)
+                    self._set_activity(f"preparing {event.tool_name}")
+
+                elif isinstance(event, ToolCallArgFragEvent):
+                    buf = self._tool_arg_buffers.get(event.index, "") + event.fragment
+                    self._tool_arg_buffers[event.index] = buf
+                    hint = self._extract_arg_hint(buf)
+                    if hint is not None:
+                        label, value = hint
+                        prev = getattr(self, "_tool_arg_last_hint", {}).get(event.index)
+                        if prev != (label, value):
+                            chat.write_tool_progress(label, value)
+                            if not hasattr(self, "_tool_arg_last_hint"):
+                                self._tool_arg_last_hint: dict[int, tuple[str, str]] = {}
+                            self._tool_arg_last_hint[event.index] = (label, value)
+                    name = self._tool_names.get(event.index, "tool")
+                    self._set_activity(f"streaming args for {name}")
+
+                elif isinstance(event, ToolCallExecutingEvent):
+                    summary = ""
+                    for key in ("path", "file_path", "command", "pattern", "url", "query"):
+                        val = event.arguments.get(key)
+                        if isinstance(val, str) and val:
+                            summary = f"{key}={val[:80]}"
+                            break
+                    if not summary and "content" in event.arguments and isinstance(event.arguments["content"], str):
+                        summary = f"content={len(event.arguments['content'])} chars"
+                    chat.write_tool_executing(event.tool_name, summary)
+                    self._set_activity(f"running {event.tool_name}")
 
                 elif isinstance(event, ToolCallResultEvent):
-                    chat.write_tool_call(
+                    idx = next(
+                        (i for i, n in self._tool_names.items() if n == event.tool_name),
+                        None,
+                    )
+                    elapsed_ms = 0.0
+                    if idx is not None and idx in self._tool_started_at:
+                        elapsed_ms = (time.monotonic() - self._tool_started_at.pop(idx)) * 1000
+                        self._tool_names.pop(idx, None)
+                        self._tool_arg_buffers.pop(idx, None)
+                        if hasattr(self, "_tool_arg_last_hint"):
+                            self._tool_arg_last_hint.pop(idx, None)
+                    chat.write_tool_done(
                         event.tool_name,
-                        json.dumps(event.arguments, ensure_ascii=False)[:100],
                         event.result,
                         event.approved,
+                        elapsed_ms=elapsed_ms,
                     )
                     if self._store and self._session_id:
                         pass
+                    self._set_activity("calling model")
 
                 elif isinstance(event, UsageEvent):
                     sb.update_all(
@@ -355,6 +456,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         reasoning_started = False
                     chat.flush_assistant_stream()
                     chat.write_error(event.message)
+                    self._set_activity(None)
 
                 elif isinstance(event, DoneEvent):
                     if reasoning_started:
@@ -383,6 +485,10 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             chat.flush_assistant_stream()
             chat.write_error(str(e))
         finally:
+            try:
+                self._set_activity(None)
+            except Exception:
+                pass
             self._set_streaming(False)
             self.query_one(Composer).focus_input()
 
@@ -407,6 +513,17 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._streaming = streaming
         try:
             self.query_one(Composer).set_streaming(streaming)
+        except Exception:
+            pass
+
+    def _set_activity(self, label: str | None) -> None:
+        """Drive both the bottom status-bar spinner and the inline activity bar."""
+        try:
+            self.query_one(StatusBar).set_activity(label)
+        except Exception:
+            pass
+        try:
+            self.query_one(ActivityBar).set_activity(label)
         except Exception:
             pass
 
@@ -442,9 +559,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         header.update_context(window=caps.context_window)
         self.query_one(ChatLog).write_system_message(t("commands.model_set", model=model))
 
-    def action_toggle_reasoning(self) -> None:
-        self.query_one(ReasoningPane).toggle_collapse()
-
     def action_toggle_sessions(self) -> None:
         self.query_one(SessionsList).toggle_collapse()
 
@@ -471,7 +585,6 @@ class MainScreen(Screen):  # type: ignore[type-arg]
     async def action_new_session(self) -> None:
         await self._new_session()
         self.query_one(ChatLog).clear()
-        self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
         header = self.query_one(HeaderBar)
         header.update_title("Untitled")
@@ -629,7 +742,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         chat.write_system_message(t("commands.compact_running"))
         self._set_streaming(True)
         try:
-            summary = await self._loop.compact(focus.strip())
+            summary, est_tokens = await self._loop.compact(focus.strip())
         except Exception as e:
             chat.write_system_message(t("commands.compact_failed", error=str(e)))
             return
@@ -637,7 +750,9 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             self._set_streaming(False)
 
         chat.clear()
-        chat.write_system_message(t("commands.compact_done"))
+        chat.write_system_message(
+            t("commands.compact_done", tokens=est_tokens)
+        )
         chat.write_system_message(summary, style="dim #c0caf5")
 
         if self._store and self._session_id:
@@ -651,8 +766,12 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                 "Got it — I have the recap and will continue from here.",
             )
 
-        self.query_one(StatusBar).update_all(reset_tokens=True)
-        self.query_one(HeaderBar).update_context(used=0)
+        # Reflect the post-compact baseline: history is non-empty (the
+        # summary), so show its estimated size rather than zero.
+        self.query_one(StatusBar).update_all(
+            reset_tokens=True, prompt_tokens=est_tokens
+        )
+        self.query_one(HeaderBar).update_context(used=est_tokens)
         self.query_one(Composer).focus_input()
 
     async def _attach_file(self, path: str) -> None:
