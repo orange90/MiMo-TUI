@@ -12,7 +12,7 @@ class SessionsList(Vertical):
     DEFAULT_CSS = """
     SessionsList {
         width: 22;
-        border-right: solid #29a4bd;
+        border-right: solid #FF6700;
         padding: 0;
         background: #16213e;
     }
@@ -23,14 +23,14 @@ class SessionsList(Vertical):
     SessionsList #sl-header {
         height: 1;
         padding: 0 1;
-        color: #e0af68;
+        color: #FF6700;
         text-style: bold;
         background: #1f2335;
     }
     SessionsList #sl-new {
         height: 1;
         margin: 0 1;
-        background: #29a4bd;
+        background: #FF6700;
         color: #1a1b2e;
         border: none;
     }

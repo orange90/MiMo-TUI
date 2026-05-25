@@ -15,7 +15,7 @@ class Composer(Vertical):
         height: 4;
         background: #16213e;
         padding: 0 1;
-        border-top: solid #29a4bd;
+        border-top: solid #FF6700;
     }
     Composer #compose-label {
         height: 1;

@@ -14,7 +14,7 @@ class SidebarSection(Vertical):
     SidebarSection {
         height: auto;
         max-height: 50%;
-        border: solid #29a4bd;
+        border: solid #FF6700;
         margin: 0;
         padding: 0;
         background: #16213e;
@@ -22,7 +22,7 @@ class SidebarSection(Vertical):
     SidebarSection .sb-section-title {
         height: 1;
         background: #1f2335;
-        color: #e0af68;
+        color: #FF6700;
         text-style: bold;
         padding: 0 1;
     }
@@ -69,7 +69,7 @@ class RightSidebar(Vertical):
     DEFAULT_CSS = """
     RightSidebar {
         width: 30;
-        border-left: solid #29a4bd;
+        border-left: solid #FF6700;
         background: #1a1b2e;
         padding: 0;
         overflow-y: auto;
