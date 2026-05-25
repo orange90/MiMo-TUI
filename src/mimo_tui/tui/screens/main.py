@@ -95,7 +95,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._task_counter = 0
 
     def compose(self) -> ComposeResult:
-        yield HeaderBar(model=self._cfg.model.name, mode=self._cfg.mode)
+        yield HeaderBar(model=self._cfg.model.name, mode=self._cfg.mode, title="Untitled")
         with Horizontal(id="main-body"):
             yield SessionsList()
             with Vertical(id="center-pane"):
@@ -196,6 +196,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self.query_one(ChatLog).clear()
         self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
+        self.query_one(HeaderBar).update_title("Untitled")
         await self._refresh_sessions_list()
 
     async def on_sessions_list_session_selected(self, event: SessionsList.SessionSelected) -> None:
@@ -205,6 +206,13 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         if not self._store:
             return
         self._session_id = session_id
+
+        sessions = await self._store.list_sessions()
+        for s in sessions:
+            if s.id == session_id:
+                self.query_one(HeaderBar).update_title(s.title)
+                break
+
         messages = await self._store.list_messages(session_id)
         chat = self.query_one(ChatLog)
         chat.clear()
@@ -234,7 +242,9 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             sessions = await self._store.list_sessions()
             for s in sessions:
                 if s.id == self._session_id and s.title == "Untitled":
-                    await self._store.update_session_title(self._session_id, text[:40])
+                    new_title = text[:40]
+                    await self._store.update_session_title(self._session_id, new_title)
+                    self.query_one(HeaderBar).update_title(new_title)
                     break
             await self._refresh_sessions_list()
 
@@ -435,6 +445,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self.query_one(ChatLog).clear()
         self.query_one(ReasoningPane).clear()
         self.query_one(ChatLog).write_system_message(t("chat.empty_hint"))
+        self.query_one(HeaderBar).update_title("Untitled")
         await self._refresh_sessions_list()
         sidebar = self.query_one(RightSidebar)
         sidebar.tasks_section.clear_items()
