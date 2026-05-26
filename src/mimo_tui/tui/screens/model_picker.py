@@ -40,11 +40,14 @@ class ModelPicker(ModalScreen[str | None]):
     def _populate(self, models: list[str]) -> None:
         lv = self.query_one("#mp-list", ListView)
         lv.clear()
-        for m in models:
+        self._id_to_model: dict[str, str] = {}
+        for i, m in enumerate(models):
             caps = get_capabilities(m)
             badge = caps.badge_str()
             text = f"{m}  {badge}"
-            lv.append(ListItem(Label(text), id=f"model-{m}"))
+            item_id = f"model-{i}"
+            self._id_to_model[item_id] = m
+            lv.append(ListItem(Label(text), id=item_id))
 
     def on_input_changed(self, event: Input.Changed) -> None:
         q = event.value.lower()
@@ -53,8 +56,9 @@ class ModelPicker(ModalScreen[str | None]):
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item_id = event.item.id or ""
-        if item_id.startswith("model-"):
-            self.dismiss(item_id[6:])
+        model = getattr(self, "_id_to_model", {}).get(item_id)
+        if model:
+            self.dismiss(model)
 
     def on_key(self, event: object) -> None:
         from textual.events import Key
