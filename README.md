@@ -4,7 +4,7 @@
 
 A feature-rich terminal UI for **Xiaomi MiMo** — the official MiMo platform.
 
-![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg) ![License](https://img.shields.io/badge/license-Apache--2.0-green.svg) ![Status](https://img.shields.io/badge/status-alpha-orange.svg)
+![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) ![License](https://img.shields.io/badge/license-Apache--2.0-green.svg) ![Status](https://img.shields.io/badge/status-alpha-orange.svg)
 
 ---
 
@@ -12,13 +12,13 @@ A feature-rich terminal UI for **Xiaomi MiMo** — the official MiMo platform.
 
 Compared to other MiMo terminal clients, MiMo TUI offers **five differentiators**:
 
-1. **First-class reasoning-trace pane** — live `<think>` stream in a collapsible side panel, with per-turn token count and latency. Toggle with `Ctrl+R`.
+1. **Inline reasoning-trace display** — live `<think>` stream rendered directly in the chat with per-turn token count and latency.
 2. **TTS audio playback in-terminal** — MiMo-V2.5-TTS variants play directly in your terminal via `sounddevice`. Audio cards in the chat with play/stop/save buttons.
 3. **Dual-protocol client** — both the OpenAI-compatible `/v1` endpoint and the Anthropic-compatible `/anthropic` endpoint via the official Anthropic SDK. Hot-switch with `/protocol`.
 4. **Multimodal input** — attach images for MiMo-V2-Omni with terminal-graphics preview (kitty / iTerm2 / sixel / ASCII fallback).
 5. **Bilingual zh-CN / en UI** — hot-switch with `/lang` or `Ctrl+L`. UI strings localize; system prompts to the model stay in EN for fidelity.
 
-Plus a **full agent loop** with plan / agent / yolo modes, per-tool approval, 8 builtin tools, and MCP server support.
+Plus a **full agent loop** with plan / agent / yolo modes, per-tool approval, 8 builtin tools, MCP server support, context-window usage display, and `/compact` for context management.
 
 ---
 
@@ -87,10 +87,11 @@ name = "MiMo-7B-RL"
 | Key | Action |
 |-----|--------|
 | `Ctrl+M` | Open model picker |
-| `Ctrl+R` | Toggle reasoning pane |
 | `Ctrl+L` | Toggle language (en ↔ zh_CN) |
 | `Ctrl+T` | Cycle theme |
 | `Ctrl+N` | New session |
+| `Ctrl+S` | Toggle session sidebar |
+| `Ctrl+B` | Toggle right sidebar (Plan / Todos) |
 | `Ctrl+Q` | Quit |
 | `Enter` | Send message |
 | `Esc` | Close modal / cancel |
@@ -108,6 +109,9 @@ name = "MiMo-7B-RL"
 | `/theme <name>` | Switch theme (tokyonight / catppuccin / mimo-light) |
 | `/attach <path>` | Attach image for next message (multimodal models) |
 | `/search <query>` | Full-text search across session history |
+| `/compact [focus]` | Summarize and compact conversation history to free context |
+| `/plan <description>` | Set a plan displayed in the right sidebar |
+| `/todo <item>` | Add a TODO item to the right sidebar |
 | `/tools` | List registered tools |
 | `/mcp` | Show registered MCP tools |
 | `/clear` | Clear current conversation |
@@ -220,6 +224,7 @@ enabled = true
 
 ```bash
 mimo                              # launch the TUI
+mimo --debug                      # launch with debug logging
 mimo --api-key sk-... --model MiMo-V2.5-Pro --mode agent
 mimo doctor                       # check API connectivity, audio support, list models
 mimo serve-detect                 # probe localhost for vLLM/SGLang/Ollama
@@ -280,13 +285,13 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 相较于其他 MiMo 终端客户端，MiMo TUI 提供**五大特色**：
 
-1. **一流的推理过程面板** — 在可折叠的侧边栏中实时显示 `<think>` 流，附带每轮 token 计数和延迟。按 `Ctrl+R` 切换。
+1. **内联推理过程展示** — 在对话中实时显示 `<think>` 流，附带每轮 token 计数和延迟。
 2. **终端内 TTS 语音播放** — MiMo-V2.5-TTS 系列模型生成的语音通过 `sounddevice` 直接在终端中播放。对话中显示音频卡片，支持播放/停止/保存按钮。
 3. **双协议客户端** — 同时支持 OpenAI 兼容 `/v1` 端点和官方 Anthropic SDK 通过 `/anthropic` 端点。`/protocol` 命令热切换。
 4. **多模态输入** — 为 MiMo-V2-Omni 附加图片，终端图形预览（kitty / iTerm2 / sixel / ASCII 兜底）。
 5. **中文/英文双语界面** — 通过 `/lang` 或 `Ctrl+L` 热切换。UI 字符串本地化；发送给模型的系统提示保持英文以确保保真度。
 
-外加**完整的 Agent 循环**：plan / agent / yolo 三种模式、逐工具授权、8 个内置工具、MCP 服务器支持。
+外加**完整的 Agent 循环**：plan / agent / yolo 三种模式、逐工具授权、8 个内置工具、MCP 服务器支持、上下文窗口用量显示、`/compact` 上下文管理。
 
 ---
 
@@ -341,7 +346,7 @@ name = "MiMo-7B-RL"
 
 ## 环境要求
 
-- **Python 3.11+**
+- **Python 3.10+**
 - 支持 **256 色**的终端（推荐 truecolor）
 - TTS 音频播放（可选）：需要 `portaudio` 原生库
   - Debian/Ubuntu：`apt install libportaudio2`
@@ -355,10 +360,11 @@ name = "MiMo-7B-RL"
 | 按键 | 操作 |
 |------|------|
 | `Ctrl+M` | 打开模型选择器 |
-| `Ctrl+R` | 切换推理过程面板 |
 | `Ctrl+L` | 切换语言（中文 ↔ 英文）|
 | `Ctrl+T` | 切换主题 |
 | `Ctrl+N` | 新建会话 |
+| `Ctrl+S` | 切换会话侧边栏 |
+| `Ctrl+B` | 切换右侧边栏（计划 / 待办）|
 | `Ctrl+Q` | 退出 |
 | `Enter` | 发送消息 |
 | `Esc` | 关闭弹窗 / 取消 |
@@ -376,6 +382,9 @@ name = "MiMo-7B-RL"
 | `/theme <名称>` | 切换主题（tokyonight / catppuccin / mimo-light）|
 | `/attach <路径>` | 为下一条消息附加图片（多模态模型）|
 | `/search <关键词>` | 在会话历史中全文搜索 |
+| `/compact [focus]` | 压缩对话历史为摘要以释放上下文 |
+| `/plan <描述>` | 设置显示在右侧边栏的计划 |
+| `/todo <条目>` | 添加待办事项到右侧边栏 |
 | `/tools` | 列出已注册工具 |
 | `/mcp` | 显示已注册的 MCP 工具 |
 | `/clear` | 清空当前会话 |
@@ -488,6 +497,7 @@ enabled = true
 
 ```bash
 mimo                              # 启动 TUI
+mimo --debug                      # 启用调试日志启动
 mimo --api-key sk-... --model MiMo-V2.5-Pro --mode agent
 mimo doctor                       # 检查 API 连接、音频支持、列出可用模型
 mimo serve-detect                 # 探测本机 vLLM/SGLang/Ollama
