@@ -60,7 +60,7 @@ class ActivityBar(Horizontal):
         if self._activity is None:
             return
         self._frame = (self._frame + 1) % (BAR_WIDTH * 2)
-        self._render()
+        self._repaint()
 
     def set_activity(self, label: str | None) -> None:
         """Show the bar with a label like "thinking" / clear with None."""
@@ -70,13 +70,13 @@ class ActivityBar(Horizontal):
                 self._frame = 0
             self._activity = label
             self.add_class("-visible")
-            self._render()
+            self._repaint()
         else:
             self._activity = None
             self._started_at = 0.0
             self.remove_class("-visible")
 
-    def _render(self) -> None:
+    def _repaint(self) -> None:
         if self._activity is None:
             return
 

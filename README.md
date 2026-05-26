@@ -24,7 +24,21 @@ Plus a **full agent loop** with plan / agent / yolo modes, per-tool approval, 8 
 
 ## Quick Start
 
-> **Note:** Not yet published to PyPI. Install from source for now.
+> **Note:** Install from PyPI or source.
+
+```bash
+# Install from PyPI
+pip install mimo-tui
+
+# Or install with TTS audio support
+pip install "mimo-tui[audio]"
+
+# Set your API key and launch
+export MIMO_API_KEY=your_key_here
+mimo
+```
+
+Or install from source:
 
 ```bash
 # Clone and install from source
@@ -297,7 +311,21 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 ## 快速开始
 
-> **提示：** 暂未发布到 PyPI，目前请从源码安装。
+> **提示：** 可从 PyPI 或源码安装。
+
+```bash
+# 从 PyPI 安装
+pip install mimo-tui
+
+# 或安装带 TTS 音频支持的版本
+pip install "mimo-tui[audio]"
+
+# 设置 API 密钥并启动
+export MIMO_API_KEY=你的密钥
+mimo
+```
+
+或从源码安装：
 
 ```bash
 # 克隆并从源码安装

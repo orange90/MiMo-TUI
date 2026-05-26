@@ -5,8 +5,7 @@ import time
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Static
-
+from textual.widgets import Link, Static
 
 SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
@@ -29,6 +28,15 @@ class StatusBar(Horizontal):
         color: #565f89;
         content-align: right middle;
     }
+    StatusBar #sb-github {
+        width: auto;
+        color: #565f89;
+        padding: 0 0 0 1;
+    }
+    StatusBar #sb-github:hover {
+        color: #7aa2f7;
+        text-style: underline;
+    }
     """
 
     def __init__(self) -> None:
@@ -50,6 +58,7 @@ class StatusBar(Horizontal):
     def compose(self) -> ComposeResult:
         yield Static("", id="sb-left")
         yield Static("", id="sb-right")
+        yield Link("GitHub", id="sb-github", url="https://github.com/orange90/mimo-tui")
 
     def on_mount(self) -> None:
         # Drive the spinner ~10 fps so the "working in progress" indicator
@@ -85,7 +94,7 @@ class StatusBar(Horizontal):
         completion_tokens: int = 0,
         latency_ms: float = 0.0,
         endpoint: str = "",
-        lang: str = "en",
+        lang: str = "",
         audio_playing: bool = False,
         context_window: int = 0,
         reset_tokens: bool = False,

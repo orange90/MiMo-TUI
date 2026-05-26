@@ -20,11 +20,11 @@ temperature = 0.6
 
 [approval]
 policy = "prompt"
-auto_allow = ["read_file", "glob", "grep"]
+auto_allow = ["read_file", "glob", "grep", "todo_write", "web_fetch"]
 
 [sandbox]
 project_root = "."
-shell_allowlist = ["git", "ls", "cat", "rg", "python", "pytest", "npm", "node"]
+shell_allowlist = ["git", "ls", "cat", "rg", "python", "python3", "pytest", "npm", "node", "pwd", "mkdir", "mv", "cp", "touch", "echo", "head", "tail", "wc", "find", "which", "grep"]
 shell_timeout_s = 60
 write_paths = ["."]
 
