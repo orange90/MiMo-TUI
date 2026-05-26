@@ -13,24 +13,31 @@ class HeaderBar(Horizontal):
     DEFAULT_CSS = """
     HeaderBar {
         dock: top;
-        height: 1;
-        background: #1a1b2e;
+        height: auto;
+        background: #0f1020;
         color: #FF6700;
         padding: 0 1;
+        border-bottom: heavy #FF6700;
+    }
+    HeaderBar > Static {
+        height: 1;
     }
     HeaderBar #hb-left {
         width: auto;
         content-align: left middle;
+        text-style: bold;
     }
     HeaderBar #hb-center {
         width: 1fr;
         content-align: center middle;
-        color: #c0caf5;
+        color: #e8ecff;
+        text-style: bold;
     }
     HeaderBar #hb-right {
         width: auto;
         content-align: right middle;
-        color: #565f89;
+        color: #a9b1d6;
+        text-style: bold;
     }
     """
 
@@ -49,22 +56,22 @@ class HeaderBar(Horizontal):
 
     def _build_left(self) -> str:
         model_short = self._model.split("/")[-1] if self._model else "mimo"
-        return f"{XIAOMI_LOGO_TEXT} [bold #FF6700]XiaoMiMo[/]  [dim]mimo-tui · {model_short}[/]"
+        return f"{XIAOMI_LOGO_TEXT} [bold #FF6700]XiaoMiMo[/]  [bold #a9b1d6]mimo-tui · {model_short}[/]"
 
     def _build_center(self) -> str:
-        return f"[dim]◆[/]  {self._title}"
+        return f"[#FF6700]◆[/]  [bold #e8ecff]{self._title}[/]"
 
     def _build_right(self) -> str:
-        parts = [f"[dim]{self._mode}[/]"]
+        parts = [f"[bold #a9b1d6]{self._mode}[/]"]
         if self._ctx_used > 0 and self._ctx_window > 0:
             pct = min(100, int((self._ctx_used / self._ctx_window) * 100))
             color = "#9ece6a" if pct < 60 else "#e0af68" if pct < 85 else "#f7768e"
             parts.append(
-                f"[{color}]ctx {pct}%[/] [dim]{_fmt_tok(self._ctx_used)}/{_fmt_tok(self._ctx_window)}[/]"
+                f"[bold {color}]ctx {pct}%[/] [bold #a9b1d6]{_fmt_tok(self._ctx_used)}/{_fmt_tok(self._ctx_window)}[/]"
             )
         elif self._ctx_window > 0:
-            parts.append(f"[dim]ctx 0% 0/{_fmt_tok(self._ctx_window)}[/]")
-        return "  [dim]·[/]  ".join(parts)
+            parts.append(f"[bold #a9b1d6]ctx 0% 0/{_fmt_tok(self._ctx_window)}[/]")
+        return "  [#FF6700]·[/]  ".join(parts)
 
     def update_model(self, model: str) -> None:
         self._model = model
