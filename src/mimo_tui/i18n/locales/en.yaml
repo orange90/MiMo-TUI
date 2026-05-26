@@ -74,6 +74,9 @@ commands:
   compact_empty: "Nothing to compact — conversation is empty."
   compact_busy: "Cannot compact while a response is streaming."
   compact_failed: "Compact failed: {error}"
+  auto_compact_running: "Auto-compacting context at {pct}% to free room…"
+  auto_compact_done: "Auto-compact done. Resuming with ~{tokens} tokens."
+  auto_compact_failed: "Auto-compact failed: {error}"
   help_text: |
     Available commands:
     /model <name>       Switch model

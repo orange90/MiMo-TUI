@@ -10,7 +10,13 @@ from typing import Any, AsyncGenerator
 
 from mimo_tui.agent.approval import ApprovalCallback, ApprovalRequest, auto_approve
 from mimo_tui.agent.modes import AgentMode
-from mimo_tui.agent.prompts import get_system_prompt
+from mimo_tui.agent.prompts import (
+    COMPACT_SYSTEM_PROMPT,
+    CompactKind,
+    build_compact_user_message,
+    extract_summary,
+    get_system_prompt,
+)
 from mimo_tui.agent.registry import ToolRegistry
 from mimo_tui.client.protocol_selector import AnyClient
 from mimo_tui.client.schemas import (
@@ -26,7 +32,13 @@ from mimo_tui.client.schemas import (
     UsageDelta,
 )
 from mimo_tui.config.schema import AppConfig
-from mimo_tui.constants import AGENT_MAX_ITERATIONS
+from mimo_tui.constants import (
+    AGENT_MAX_ITERATIONS,
+    AUTO_COMPACT_MAX_OUTPUT,
+    AUTO_COMPACT_THRESHOLD,
+    COMPACT_ACK,
+    COMPACT_RECAP_HEADER,
+)
 from mimo_tui.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -128,6 +140,7 @@ class AgentLoop:
         self._approval_cb = approval_cb or auto_approve
         self._history: list[Message] = []
         self._pending_call_ids: dict[int, str] = {}  # index → call_id
+        self._compacting: bool = False
 
     def reset(self) -> None:
         self._history.clear()
@@ -138,59 +151,47 @@ class AgentLoop:
     def history_size(self) -> int:
         return len(self._history)
 
-    async def compact(self, focus: str = "") -> tuple[str, int]:
+    async def compact(
+        self, focus: str = "", kind: CompactKind = "full"
+    ) -> tuple[str, int]:
         """Summarize current history via the model, then replace history with the recap.
 
-        Returns ``(summary_text, estimated_new_context_tokens)``. The estimate is
-        the model-reported completion-token count of the summary plus a small
-        constant for the assistant ack — i.e. roughly the prompt size the next
-        turn will send. Falls back to a char-based heuristic if the provider
-        omits usage.
+        Uses Claude Code's leaked compaction prompts (`COMPACT_PROMPT_FULL` for
+        the manual `/compact` path, `COMPACT_PROMPT_LIGHT` for auto-trigger).
+        Returns ``(summary_text, estimated_new_context_tokens)``.
         """
         if not self._history:
             return "", 0
 
-        focus_line = (
-            f"Focus areas requested by the user: {focus}\n" if focus else ""
-        )
-        instruction = (
-            "Produce a concise structured recap of the conversation above so "
-            "we can continue in a fresh context window. Cover: (1) user goal "
-            "and key decisions, (2) facts discovered or established, (3) work "
-            "completed, (4) work still pending or open questions. Be specific "
-            "with file paths, identifiers, numbers, and API names — do not "
-            "invent details. Keep under ~400 words.\n" + focus_line
-        )
+        instruction = build_compact_user_message(kind, focus)
 
         req = ChatRequest(
             model=self._cfg.model.name,
             messages=(
-                [Message(role="system", content="You summarize conversations.")]
+                [Message(role="system", content=COMPACT_SYSTEM_PROMPT)]
                 + self._history
                 + [Message(role="user", content=instruction)]
             ),
             tools=None,
-            max_tokens=min(2048, self._cfg.model.max_tokens),
+            max_tokens=min(AUTO_COMPACT_MAX_OUTPUT, self._cfg.model.max_tokens),
             temperature=0.3,
         )
 
-        summary = ""
+        raw = ""
         summary_tokens = 0
         async for delta in self._client.stream(req):
             if isinstance(delta, ContentDelta):
-                summary += delta.text
+                raw += delta.text
             elif isinstance(delta, UsageDelta):
                 summary_tokens = delta.completion_tokens
 
-        summary = summary.strip()
+        summary = extract_summary(raw)
         if not summary:
             raise RuntimeError("compact: empty summary from model")
 
-        recap_header = "[Compacted conversation summary]\n"
-        ack = "Got it — I have the recap and will continue from here."
         self._history = [
-            Message(role="user", content=recap_header + summary),
-            Message(role="assistant", content=ack),
+            Message(role="user", content=COMPACT_RECAP_HEADER + summary),
+            Message(role="assistant", content=COMPACT_ACK),
         ]
 
         if summary_tokens <= 0:
@@ -199,6 +200,29 @@ class AgentLoop:
         # +recap header (~6) + assistant ack (~12) + per-message overhead.
         estimated = summary_tokens + 24
         return summary, estimated
+
+    async def maybe_auto_compact(
+        self, used_tokens: int, context_window: int
+    ) -> tuple[str, int] | None:
+        """Trigger a light-style compaction if usage crossed the threshold.
+
+        Returns ``(summary, est_tokens)`` when compaction ran, else ``None``.
+        Re-entry while already compacting is suppressed.
+        """
+        if self._compacting:
+            return None
+        if context_window <= 0 or used_tokens <= 0:
+            return None
+        if used_tokens < int(context_window * AUTO_COMPACT_THRESHOLD):
+            return None
+        if not self._history:
+            return None
+
+        self._compacting = True
+        try:
+            return await self.compact(focus="", kind="light")
+        finally:
+            self._compacting = False
 
     async def run(self, user_text: str) -> AsyncGenerator[AgentEvent, None]:
         self._history.append(Message(role="user", content=user_text))
