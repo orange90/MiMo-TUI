@@ -13,6 +13,11 @@ authors = [
     {name = "MiMo-TUI contributors"},
 ]
 keywords = ["mimo", "xiaomi", "llm", "tui", "terminal", "agent", "mcp"]
+
+[project.urls]
+Homepage      = "https://github.com/orange90/mimo-tui"
+Repository    = "https://github.com/orange90/mimo-tui"
+"Bug Tracker" = "https://github.com/orange90/mimo-tui/issues"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
