@@ -35,7 +35,7 @@ from mimo_tui.audio.player import AudioPlayer
 from mimo_tui.client.protocol_selector import get_client
 from mimo_tui.config.loader import load_config, save_config
 from mimo_tui.config.schema import AppConfig
-from mimo_tui.constants import SESSIONS_DB
+from mimo_tui.constants import AUTO_COMPACT_THRESHOLD, SESSIONS_DB
 from mimo_tui.i18n.translator import set_language, t
 from mimo_tui.mcp.manager import MCPManager
 from mimo_tui.providers.capabilities import get_capabilities
@@ -99,6 +99,8 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         self._tool_arg_buffers: dict[int, str] = {}
         self._tool_names: dict[int, str] = {}
         self._tool_started_at: dict[int, float] = {}
+        self._last_ctx_used: int = 0
+        self._pending_auto_compact: bool = False
 
     def compose(self) -> ComposeResult:
         yield HeaderBar(model=self._cfg.model.name, mode=self._cfg.mode, title="Untitled")
@@ -449,9 +451,15 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         completion_tokens=event.completion_tokens,
                         latency_ms=event.latency_ms,
                     )
-                    self.query_one(HeaderBar).update_context(
-                        used=event.prompt_tokens + event.completion_tokens
-                    )
+                    used = event.prompt_tokens + event.completion_tokens
+                    self._last_ctx_used = used
+                    self.query_one(HeaderBar).update_context(used=used)
+                    caps_ = get_capabilities(self._cfg.model.name)
+                    if (
+                        caps_.context_window > 0
+                        and used >= int(caps_.context_window * AUTO_COMPACT_THRESHOLD)
+                    ):
+                        self._pending_auto_compact = True
 
                 elif isinstance(event, ErrorEvent):
                     if reasoning_started:
@@ -494,6 +502,15 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                 pass
             self._set_streaming(False)
             self.query_one(Composer).focus_input()
+
+            if self._pending_auto_compact:
+                self._pending_auto_compact = False
+                try:
+                    await self._run_auto_compact()
+                except Exception as e:
+                    self.query_one(ChatLog).write_system_message(
+                        t("commands.auto_compact_failed", error=str(e))
+                    )
 
     async def _play_audio(self) -> None:
         if not self._audio_buf:
@@ -748,17 +765,45 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         chat.write_system_message(t("commands.compact_running"))
         self._set_streaming(True)
         try:
-            summary, est_tokens = await self._loop.compact(focus.strip())
+            summary, est_tokens = await self._loop.compact(focus.strip(), kind="full")
         except Exception as e:
             chat.write_system_message(t("commands.compact_failed", error=str(e)))
             return
         finally:
             self._set_streaming(False)
 
-        chat.clear()
-        chat.write_system_message(
-            t("commands.compact_done", tokens=est_tokens)
+        await self._apply_compact_result(
+            summary, est_tokens, t("commands.compact_done", tokens=est_tokens)
         )
+
+    async def _run_auto_compact(self) -> None:
+        """Light-style compaction triggered when context crosses the threshold."""
+        if self._loop is None or self._loop.history_size() == 0:
+            return
+        caps = get_capabilities(self._cfg.model.name)
+        used = self._last_ctx_used
+        if caps.context_window <= 0 or used <= 0:
+            return
+        pct = min(100, int(used / caps.context_window * 100))
+
+        chat = self.query_one(ChatLog)
+        chat.write_system_message(t("commands.auto_compact_running", pct=pct))
+
+        result = await self._loop.maybe_auto_compact(used, caps.context_window)
+        if result is None:
+            return
+        summary, est_tokens = result
+        await self._apply_compact_result(
+            summary, est_tokens, t("commands.auto_compact_done", tokens=est_tokens)
+        )
+
+    async def _apply_compact_result(
+        self, summary: str, est_tokens: int, status_text: str
+    ) -> None:
+        """Shared post-compact UI / persistence path (manual + auto)."""
+        chat = self.query_one(ChatLog)
+        chat.clear()
+        chat.write_system_message(status_text)
         chat.write_system_message(summary, style="dim #c0caf5")
 
         if self._store and self._session_id:
@@ -778,6 +823,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             reset_tokens=True, prompt_tokens=est_tokens
         )
         self.query_one(HeaderBar).update_context(used=est_tokens)
+        self._last_ctx_used = est_tokens
         self.query_one(Composer).focus_input()
 
     async def _attach_file(self, path: str) -> None:
