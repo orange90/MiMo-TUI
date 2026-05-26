@@ -6,6 +6,7 @@ import json
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
 
 from mimo_tui.agent.approval import ApprovalRequest
@@ -92,7 +93,7 @@ class ApprovalPanel(Vertical):
             danger_lbl.update("")
             danger_lbl.display = False
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self._future = loop.create_future()
         self.add_class("-visible")
         try:

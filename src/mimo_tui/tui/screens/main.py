@@ -180,19 +180,22 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             return False
         return await panel.request(req)
 
-    async def _prompt_plan_approval(self) -> None:
+    def _prompt_plan_approval(self) -> None:
         from mimo_tui.tui.screens.approval import PlanApprovalModal
-        approved = await self.app.push_screen_wait(PlanApprovalModal())  # type: ignore[assignment]
-        chat = self.query_one(ChatLog)
-        if approved:
-            self._cfg.mode = "agent"
-            save_config(self._cfg)
-            if self._loop is not None:
-                self._loop._mode = AgentMode.AGENT
-            self.query_one(StatusBar).update_all(mode="agent")
-            chat.write_system_message(t("plan_approval.approved_msg"))
-        else:
-            chat.write_system_message(t("plan_approval.denied_msg"))
+
+        def _after(approved: bool | None) -> None:
+            chat = self.query_one(ChatLog)
+            if approved:
+                self._cfg.mode = "agent"
+                save_config(self._cfg)
+                if self._loop is not None:
+                    self._loop._mode = AgentMode.AGENT
+                self.query_one(StatusBar).update_all(mode="agent")
+                chat.write_system_message(t("plan_approval.approved_msg"))
+            else:
+                chat.write_system_message(t("plan_approval.denied_msg"))
+
+        self.app.push_screen(PlanApprovalModal(), _after)
 
     # -- Message handlers --
 
@@ -473,7 +476,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     task_label = f"turn {self._session_id[:8] if self._session_id else ''}... (completed)"
                     sidebar.tasks_section.set_items([task_label])
                     if self._cfg.mode == "plan" and content_buf.strip():
-                        await self._prompt_plan_approval()
+                        self._prompt_plan_approval()
 
         except asyncio.CancelledError:
             if reasoning_started:
@@ -529,11 +532,14 @@ class MainScreen(Screen):  # type: ignore[type-arg]
 
     # -- Actions --
 
-    async def action_open_model_picker(self) -> None:
+    def action_open_model_picker(self) -> None:
         from mimo_tui.tui.screens.model_picker import ModelPicker
-        model = await self.app.push_screen_wait(ModelPicker())
-        if model:
-            await self._apply_model(model)
+
+        def _after(model: str | None) -> None:
+            if model:
+                self.run_worker(self._apply_model(model), exclusive=False)
+
+        self.app.push_screen(ModelPicker(), _after)
 
     async def _apply_model(self, model: str) -> None:
         self._cfg.model.name = model
@@ -607,7 +613,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             if args:
                 await self._apply_model(args[0])
             else:
-                await self.action_open_model_picker()
+                self.action_open_model_picker()
 
         elif cmd == "mode":
             if args and args[0] in ("chat", "plan", "agent", "yolo"):
@@ -708,7 +714,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             chat.write_system_message(f"Session saved (id={self._session_id})")
 
         elif cmd == "load":
-            sessions = await (self._store.list_sessions() if self._store else [])  # type: ignore[assignment]
+            sessions = await self._store.list_sessions() if self._store else []
             if sessions and args:
                 for s in sessions:
                     if s.id.startswith(args[0]) or s.title == args[0]:
@@ -781,7 +787,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             chat.write_system_message(f"File not found: {path}")
             return
         if not self._cfg.model.vision:
-            chat.write_system_message(f"Current model does not support vision. Switch to MiMo-V2-Omni.")
+            chat.write_system_message("Current model does not support vision. Switch to MiMo-V2-Omni.")
             return
         from mimo_tui.images.pipeline import build_image_content
         try:

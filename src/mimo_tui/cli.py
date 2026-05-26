@@ -121,8 +121,10 @@ def doctor(
         try:
             import sounddevice  # noqa: F401
             typer.echo(f"  ✓ {t('doctor.audio_ok')}")
-        except (ImportError, OSError):
+        except ImportError:
             typer.echo(f"  ⚠ {t('doctor.audio_fail')}")
+        except OSError as e:
+            typer.echo(f"  ⚠ Audio: PortAudio library not found ({e}). Install libportaudio2 (Debian/Ubuntu) or portaudio (macOS).")
 
         typer.echo("─" * 40)
 
