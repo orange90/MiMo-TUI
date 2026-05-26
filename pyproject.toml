@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mimo-tui"
-version = "0.1.0"
+version = "0.2.0"
 description = "A feature-rich terminal UI for Xiaomi MiMo — reasoning traces, TTS audio, multimodal, agent loop, MCP"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [
     {name = "MiMo-TUI contributors"},
 ]
@@ -19,6 +19,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Terminals",
@@ -33,6 +34,7 @@ dependencies = [
     "typer>=0.12",
     "pyyaml>=6.0",
     "tomli-w>=1.0",
+    "tomli>=2.0; python_version < '3.11'",
     "pillow>=10.3",
     "aiosqlite>=0.20",
     "mcp>=1.0",
@@ -71,7 +73,7 @@ packages = ["src/mimo_tui"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -79,7 +81,7 @@ select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 mypy_path = "src"
