@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from mimo_tui.config.schema import AppConfig
+from mimo_tui.tools.apply_patch import ApplyPatchTool
 from mimo_tui.tools.base import BaseTool
 from mimo_tui.tools.diff import DiffTool
 from mimo_tui.tools.edit_file import EditFileTool
@@ -45,6 +46,7 @@ def build_registry(cfg: AppConfig) -> ToolRegistry:
     timeout = cfg.sandbox.shell_timeout_s
 
     reg.register(ReadFileTool())
+    reg.register(ApplyPatchTool(project_root=root))
     reg.register(WriteFileTool(write_paths=wp, project_root=root))
     reg.register(EditFileTool(write_paths=wp, project_root=root))
     reg.register(GlobTool())
