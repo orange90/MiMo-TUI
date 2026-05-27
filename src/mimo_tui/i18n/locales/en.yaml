@@ -43,8 +43,9 @@ plan_approval:
   hint: "Review the plan above. Approve to switch to agent mode and begin execution, or keep planning to refine it."
   approve: "Approve & Run"
   keep_planning: "Keep Planning"
-  approved_msg: "Plan approved. Switched to agent mode — send your next message to begin execution."
+  approved_msg: "Plan approved. Switched to agent mode — executing now…"
   denied_msg: "Staying in plan mode. Send refinements or a new plan request."
+  execute_prompt: "Plan approved. Proceed to execute the plan above now."
 model_picker:
   title: "Select Model"
   search: "Search models…"
@@ -89,6 +90,8 @@ commands:
     /compact [focus]    Summarize history to free context
     /tools              List available tools
     /mcp                MCP server manager
+    /plan <description> Set the plan shown in the right sidebar
+    /todo <item>        Add a TODO item to the right sidebar
     /fork               Fork this session
     /save               Save session
     /load               Load session

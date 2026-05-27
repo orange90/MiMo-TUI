@@ -182,6 +182,37 @@ class MainScreen(Screen):  # type: ignore[type-arg]
             return False
         return await panel.request(req)
 
+    def _populate_plan_sidebar(self, plan_text: str) -> None:
+        """Extract a short outline from the plan content and show it in the sidebar."""
+        import re as _re
+        # Lines starting with #, bullet, or "<n><punct>" (incl. CJK delimiters).
+        outline_re = _re.compile(r"^\s*(#+\s|[-*•]\s|\d{1,3}\s*[.、)）:：])")
+
+        lines = [ln.rstrip() for ln in plan_text.splitlines() if ln.strip()]
+        outline = [ln for ln in lines if outline_re.match(ln)]
+        items = [ln[:50] for ln in (outline or lines)[:8]]
+        try:
+            self.query_one(RightSidebar).plan_section.set_items(items)
+        except Exception:
+            pass
+
+    def _refresh_sidebar_todos(self) -> None:
+        """Read .mimo/todos.json and mirror it into the sidebar Todos section."""
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            todo_file = _Path(".mimo") / "todos.json"
+            if not todo_file.exists():
+                return
+            todos = _json.loads(todo_file.read_text(encoding="utf-8"))
+            items = [
+                f"{'[x]' if t.get('done') else '[ ]'} {t.get('text', '')[:40]}"
+                for t in todos
+            ]
+            self.query_one(RightSidebar).todos_section.set_items(items)
+        except Exception:
+            pass
+
     def _prompt_plan_approval(self) -> None:
         from mimo_tui.tui.screens.approval import PlanApprovalModal
 
@@ -194,8 +225,17 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     self._loop._mode = AgentMode.AGENT
                 self.query_one(StatusBar).update_all(mode="agent")
                 chat.write_system_message(t("plan_approval.approved_msg"))
+                self.run_worker(
+                    self._send_message(t("plan_approval.execute_prompt")),
+                    name="plan-auto-execute",
+                    exclusive=False,
+                )
             else:
                 chat.write_system_message(t("plan_approval.denied_msg"))
+            try:
+                self.query_one(Composer).focus_input()
+            except Exception:
+                pass
 
         self.app.push_screen(PlanApprovalModal(), _after)
 
@@ -441,6 +481,8 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                         event.approved,
                         elapsed_ms=elapsed_ms,
                     )
+                    if event.tool_name == "todo_write" and event.approved:
+                        self._refresh_sidebar_todos()
                     if self._store and self._session_id:
                         pass
                     self._set_activity("calling model")
@@ -484,6 +526,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     task_label = f"turn {self._session_id[:8] if self._session_id else ''}... (completed)"
                     sidebar.tasks_section.set_items([task_label])
                     if self._cfg.mode == "plan" and content_buf.strip():
+                        self._populate_plan_sidebar(content_buf)
                         self._prompt_plan_approval()
 
         except asyncio.CancelledError:
