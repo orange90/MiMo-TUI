@@ -43,8 +43,9 @@ plan_approval:
   hint: "请审阅上方的计划。批准后将切换至 agent 模式并开始执行；继续规划则可在 plan 模式中进一步完善。"
   approve: "批准并执行"
   keep_planning: "继续规划"
-  approved_msg: "计划已批准。已切换至 agent 模式 — 发送下一条消息以开始执行。"
+  approved_msg: "计划已批准。已切换至 agent 模式 — 正在自动执行…"
   denied_msg: "保持 plan 模式。请发送修改意见或新的规划请求。"
+  execute_prompt: "计划已批准。请按上述计划开始执行。"
 model_picker:
   title: "选择模型"
   search: "搜索模型…"
@@ -89,6 +90,8 @@ commands:
     /compact [关注点]    将历史压缩为摘要以释放上下文
     /tools               列出可用工具
     /mcp                 MCP 服务器管理
+    /plan <描述>         设置右侧边栏的计划
+    /todo <条目>         添加待办事项到右侧边栏
     /fork                复制会话
     /save                保存会话
     /load                加载会话
