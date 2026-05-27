@@ -6,6 +6,7 @@ from mimo_tui.config.schema import AppConfig
 from mimo_tui.tools.base import BaseTool
 from mimo_tui.tools.diff import DiffTool
 from mimo_tui.tools.edit_file import EditFileTool
+from mimo_tui.tools.git_tools import GitDiffTool, GitLogTool, GitStatusTool
 from mimo_tui.tools.glob import GlobTool
 from mimo_tui.tools.grep import GrepTool
 from mimo_tui.tools.read_file import ReadFileTool
@@ -48,6 +49,9 @@ def build_registry(cfg: AppConfig) -> ToolRegistry:
     reg.register(GlobTool())
     reg.register(GrepTool())
     reg.register(DiffTool(project_root=root))
+    reg.register(GitStatusTool(project_root=root))
+    reg.register(GitLogTool(project_root=root))
+    reg.register(GitDiffTool(project_root=root))
     reg.register(ShellExecTool(allowlist=allow, write_paths=wp, project_root=root, timeout_s=timeout))
     reg.register(WebFetchTool())
     reg.register(TodoWriteTool())
