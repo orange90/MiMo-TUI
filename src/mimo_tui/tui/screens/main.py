@@ -213,6 +213,34 @@ class MainScreen(Screen):  # type: ignore[type-arg]
         except Exception:
             pass
 
+    def _save_plan_document(self, plan_text: str) -> None:
+        """Persist the generated plan as a new timestamped markdown file.
+
+        A fresh file is written under .mimo/plans/ for every plan so that
+        previous plans are never overwritten.
+        """
+        from datetime import datetime
+        from pathlib import Path
+
+        text = (plan_text or "").strip()
+        if not text:
+            return
+        try:
+            plans_dir = Path(".mimo") / "plans"
+            plans_dir.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            path = plans_dir / f"plan-{ts}.md"
+            header = f"# Plan \u2014 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            path.write_text(header + text + "\n", encoding="utf-8")
+        except Exception:
+            return
+        try:
+            self.query_one(ChatLog).write_system_message(
+                f"\U0001F4C4 Plan saved to {path}"
+            )
+        except Exception:
+            pass
+
     def _prompt_plan_approval(self) -> None:
         from mimo_tui.tui.screens.approval import PlanApprovalModal
 
@@ -527,6 +555,7 @@ class MainScreen(Screen):  # type: ignore[type-arg]
                     sidebar.tasks_section.set_items([task_label])
                     if self._cfg.mode == "plan" and content_buf.strip():
                         self._populate_plan_sidebar(content_buf)
+                        self._save_plan_document(content_buf)
                         self._prompt_plan_approval()
 
         except asyncio.CancelledError:
