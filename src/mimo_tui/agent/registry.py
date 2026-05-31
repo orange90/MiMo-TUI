@@ -3,10 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from mimo_tui.config.schema import AppConfig
-from mimo_tui.tools.base import BaseTool, ToolSpec
+from mimo_tui.tools.apply_patch import ApplyPatchTool
+from mimo_tui.tools.base import BaseTool
+from mimo_tui.tools.diff import DiffTool
 from mimo_tui.tools.edit_file import EditFileTool
+from mimo_tui.tools.git_tools import GitDiffTool, GitLogTool, GitStatusTool
 from mimo_tui.tools.glob import GlobTool
 from mimo_tui.tools.grep import GrepTool
+from mimo_tui.tools.python_exec import PythonExecTool
 from mimo_tui.tools.read_file import ReadFileTool
 from mimo_tui.tools.shell_exec import ShellExecTool
 from mimo_tui.tools.todo_write import TodoWriteTool
@@ -42,10 +46,16 @@ def build_registry(cfg: AppConfig) -> ToolRegistry:
     timeout = cfg.sandbox.shell_timeout_s
 
     reg.register(ReadFileTool())
+    reg.register(ApplyPatchTool(project_root=root))
     reg.register(WriteFileTool(write_paths=wp, project_root=root))
     reg.register(EditFileTool(write_paths=wp, project_root=root))
     reg.register(GlobTool())
     reg.register(GrepTool())
+    reg.register(DiffTool(project_root=root))
+    reg.register(GitStatusTool(project_root=root))
+    reg.register(GitLogTool(project_root=root))
+    reg.register(GitDiffTool(project_root=root))
+    reg.register(PythonExecTool(project_root=root))
     reg.register(ShellExecTool(allowlist=allow, write_paths=wp, project_root=root, timeout_s=timeout))
     reg.register(WebFetchTool())
     reg.register(TodoWriteTool())

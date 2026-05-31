@@ -6,7 +6,7 @@ from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select, Static
 
-from mimo_tui.constants import OFFICIAL_ANTHROPIC_URL, OFFICIAL_API_URL
+from mimo_tui.constants import OFFICIAL_API_URL
 from mimo_tui.i18n.translator import t
 from mimo_tui.providers.capabilities import all_models
 from mimo_tui.tui.theme import THEMES
@@ -65,6 +65,12 @@ class FirstRunWizard(ModalScreen[None]):
     def __init__(self) -> None:
         super().__init__()
         self._step = 0
+        self._api_key: str = ""
+        self._endpoint_url: str = OFFICIAL_API_URL
+        self._model: str = "MiMo-V2.5-Pro"
+        self._protocol: str = "openai"
+        self._language: str = "en"
+        self._theme: str = "tokyonight"
 
     def compose(self) -> ComposeResult:
         with Static():
@@ -122,26 +128,50 @@ class FirstRunWizard(ModalScreen[None]):
             next_btn = self.query_one("#wizard-next", Button)
             next_btn.label = t("first_run.finish")
 
-    def _collect_and_finish(self) -> None:
-        def _get(widget_id: str, default: str = "") -> str:
+    def _save_current_step(self) -> None:
+        """Collect values from the current step's widgets before they are destroyed."""
+        def _get(widget_id: str) -> str:
             try:
                 w = self.query_one(f"#{widget_id}")
                 if isinstance(w, Input):
-                    return w.value or default
+                    return w.value or ""
                 if isinstance(w, Select):
                     v = w.value
-                    return str(v) if v is not None else default
+                    return str(v) if v is not None else ""
             except Exception:
                 pass
-            return default
+            return ""
 
+        if self._step == 0:
+            self._api_key = _get("wiz-api-key")
+            ep = _get("wiz-endpoint")
+            if ep:
+                self._endpoint_url = ep
+        elif self._step == 1:
+            m = _get("wiz-model")
+            if m:
+                self._model = m
+        elif self._step == 2:
+            p = _get("wiz-protocol")
+            if p:
+                self._protocol = p
+        elif self._step == 3:
+            lang = _get("wiz-lang")
+            if lang:
+                self._language = lang
+            theme = _get("wiz-theme")
+            if theme:
+                self._theme = theme
+
+    def _collect_and_finish(self) -> None:
+        self._save_current_step()
         self.app.post_message(self.WizardComplete(
-            api_key=_get("wiz-api-key"),
-            endpoint_url=_get("wiz-endpoint", OFFICIAL_API_URL),
-            model=_get("wiz-model", "MiMo-V2.5-Pro"),
-            protocol=_get("wiz-protocol", "openai"),
-            language=_get("wiz-lang", "en"),
-            theme=_get("wiz-theme", "tokyonight"),
+            api_key=self._api_key,
+            endpoint_url=self._endpoint_url,
+            model=self._model,
+            protocol=self._protocol,
+            language=self._language,
+            theme=self._theme,
         ))
         self.dismiss(None)
 
@@ -151,6 +181,7 @@ class FirstRunWizard(ModalScreen[None]):
             return
         if event.button.id == "wizard-next":
             if self._step < 3:
+                self._save_current_step()
                 self._step += 1
                 self._render_step()
             else:
