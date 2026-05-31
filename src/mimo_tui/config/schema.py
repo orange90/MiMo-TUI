@@ -14,7 +14,7 @@ class EndpointConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    name: str = "MiMo-V2.5-Pro"
+    name: str = "mimo-v2.5-pro"
     reasoning: bool = True
     vision: bool = False
     audio_out: bool = False

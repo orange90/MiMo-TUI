@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Literal, Union
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class TextContent(BaseModel):
@@ -42,6 +43,13 @@ class ChatRequest(BaseModel):
     stream: bool = True
     max_tokens: int = 8192
     temperature: float = 0.6
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_model_name(cls, data: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(data, dict) and "model" in data:
+            data["model"] = data["model"].lower()
+        return data
 
 
 # ── Typed deltas emitted by the SSE parser ──
