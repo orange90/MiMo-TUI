@@ -65,6 +65,10 @@ class FirstRunWizard(ModalScreen[None]):
     def __init__(self) -> None:
         super().__init__()
         self._step = 0
+        # Values entered on each step are captured here before the step's
+        # widgets are torn down, so the final collection isn't limited to the
+        # widgets that happen to be mounted on the last step.
+        self._values: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         with Static():
@@ -122,18 +126,30 @@ class FirstRunWizard(ModalScreen[None]):
             next_btn = self.query_one("#wizard-next", Button)
             next_btn.label = t("first_run.finish")
 
-    def _collect_and_finish(self) -> None:
-        def _get(widget_id: str, default: str = "") -> str:
+    def _capture_step(self) -> None:
+        """Store the values of the currently-mounted widgets.
+
+        Each step replaces the body's children, so values must be captured
+        before navigating away or they are lost.
+        """
+        for widget_id in ("wiz-api-key", "wiz-endpoint", "wiz-model",
+                           "wiz-protocol", "wiz-lang", "wiz-theme"):
             try:
                 w = self.query_one(f"#{widget_id}")
-                if isinstance(w, Input):
-                    return w.value or default
-                if isinstance(w, Select):
-                    v = w.value
-                    return str(v) if v is not None else default
             except Exception:
-                pass
-            return default
+                continue
+            if isinstance(w, Input):
+                self._values[widget_id] = w.value
+            elif isinstance(w, Select):
+                v = w.value
+                if v is not None and v is not Select.BLANK:
+                    self._values[widget_id] = str(v)
+
+    def _collect_and_finish(self) -> None:
+        self._capture_step()
+
+        def _get(widget_id: str, default: str = "") -> str:
+            return self._values.get(widget_id) or default
 
         self.app.post_message(self.WizardComplete(
             api_key=_get("wiz-api-key"),
@@ -151,6 +167,7 @@ class FirstRunWizard(ModalScreen[None]):
             return
         if event.button.id == "wizard-next":
             if self._step < 3:
+                self._capture_step()
                 self._step += 1
                 self._render_step()
             else:
